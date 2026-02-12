@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+
+Host: siberian-motorbears.ru
+
+Sitemap: https://siberian-motorbears.ru/sitemap.xml

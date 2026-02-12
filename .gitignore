@@ -1,0 +1,11 @@
+# Секреты (токены, ключи) — не коммитить
+.env
+.env.local
+scripts/.env
+*.env
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo

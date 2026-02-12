@@ -256,11 +256,12 @@
     }
 
     function renderEntry(data, index) {
-      var dateStr = formatDate(data.date || 0);
       var text = (data.text || '').trim();
-      var textHtml = text ? ('<p class="blog-entry__text">' + escapeHtml(text).replace(/\n/g, '</p><p class="blog-entry__text">') + '</p>') : '';
       var photos = data.photos || [];
       var video = data.video && data.video.embed_url;
+      if (!text && !photos.length && !video) return '';
+      var dateStr = formatDate(data.date || 0);
+      var textHtml = text ? ('<p class="blog-entry__text">' + escapeHtml(text).replace(/\n/g, '</p><p class="blog-entry__text">') + '</p>') : '';
       var hasMedia = photos.length > 0 || video;
       var noMediaClass = hasMedia ? '' : ' blog-entry--no-media';
 
@@ -331,7 +332,8 @@
 
       Promise.all(promises).then(function (results) {
         results.forEach(function (data, i) {
-          feed.insertAdjacentHTML('beforeend', renderEntry(data, loadedCount + i));
+          var html = renderEntry(data, loadedCount + i);
+          if (html) feed.insertAdjacentHTML('beforeend', html);
         });
         loadedCount += slice.length;
         if (loadedCount >= BLOG_ENTRIES.length) showEnd(true);

@@ -18,6 +18,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
 sys.path.insert(0, str(SCRIPT_DIR))
 import save_blog_entries as blog_save
+from render_blog_initial import is_entry_file_empty
 
 OUT_DIR = blog_save.OUT_DIR
 ENV_FILE = blog_save.ENV_FILE
@@ -132,6 +133,7 @@ def main() -> None:
             print(f"  сохранено {entry_num}/{len(posts)}", file=sys.stderr)
 
     filenames = get_all_entry_filenames_sorted_desc()
+    filenames = [f for f in filenames if not is_entry_file_empty(OUT_DIR / f)]
     update_index_blog_entries(filenames)
 
     import render_blog_initial

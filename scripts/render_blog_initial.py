@@ -23,9 +23,27 @@ INDEX_HTML = REPO_ROOT / "site" / "blog" / "index.html"
 ENTRIES_BASE = "entries/"
 
 
+def is_entry_empty(data: dict) -> bool:
+    """Репост/пустая запись: нет текста, нет фото, нет видео."""
+    text = (data.get("text") or "").strip()
+    photos = data.get("photos") or []
+    video = data.get("video")
+    return not text and not photos and (video is None or not video.get("embed_url"))
+
+
+def is_entry_file_empty(path: Path) -> bool:
+    """Прочитать entry_*.json и вернуть True, если запись пустая (репост)."""
+    if not path.exists():
+        return True
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return is_entry_empty(data)
+    except Exception:
+        return True
+
+
 def get_initial_entry_filenames(count: int = 10) -> list[str]:
-    """Имена файлов 10 (или count) самых свежих записей по номерам (от новых к старым)."""
-    import re
+    """Имена файлов count самых свежих непустых записей (от новых к старым). Репосты не включаются."""
     pattern = re.compile(r"^entry_(\d+)\.json$")
     numbers = []
     for p in ENTRIES_DIR.glob("entry_*.json"):
@@ -33,7 +51,14 @@ def get_initial_entry_filenames(count: int = 10) -> list[str]:
         if m:
             numbers.append(int(m.group(1)))
     numbers.sort(reverse=True)
-    return [f"entry_{n}.json" for n in numbers[:count]]
+    result = []
+    for n in numbers:
+        if len(result) >= count:
+            break
+        path = ENTRIES_DIR / f"entry_{n}.json"
+        if not is_entry_file_empty(path):
+            result.append(f"entry_{n}.json")
+    return result
 
 
 def format_date(ts: int) -> str:
@@ -96,6 +121,8 @@ def main() -> None:
             continue
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
+            if is_entry_empty(data):
+                continue
             html_parts.append(render_entry(data))
         except Exception as e:
             print("Ошибка при разборе", filename, e, file=sys.stderr)

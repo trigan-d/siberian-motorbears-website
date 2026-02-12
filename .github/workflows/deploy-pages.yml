@@ -16,7 +16,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Копируем содержимое site в _site, чтобы корень Pages был без /site/
+      - run: mkdir -p _site && cp -r site/. _site/
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: "site"
+          path: "_site"
       - uses: actions/deploy-pages@v4

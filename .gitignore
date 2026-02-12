@@ -5,6 +5,9 @@ scripts/.env
 *.env
 !.env.example
 
+# Артефакт деплоя (создаётся в CI)
+_site/
+
 # Python
 __pycache__/
 *.py[cod]

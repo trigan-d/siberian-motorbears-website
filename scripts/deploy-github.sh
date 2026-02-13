@@ -4,14 +4,20 @@ set -e
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
-if [[ ! -f .env ]]; then
-  echo "Создайте .env в корне проекта с GITHUB_USER и GITHUB_TOKEN (см. .env.example)"
+ENV_FILE=
+if [[ -f .env ]]; then
+  ENV_FILE=".env"
+elif [[ -f scripts/.env ]]; then
+  ENV_FILE="scripts/.env"
+fi
+if [[ -z "$ENV_FILE" ]]; then
+  echo "Создайте .env в корне проекта или scripts/.env с GITHUB_USER и GITHUB_TOKEN (см. .env.example)"
   exit 1
 fi
 
 set -a
-# shellcheck source=../.env
-source .env
+# shellcheck source=scripts/.env
+source "$ENV_FILE"
 set +a
 
 if [[ -z "${GITHUB_USER}" || -z "${GITHUB_TOKEN}" ]]; then

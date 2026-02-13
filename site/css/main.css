@@ -74,6 +74,9 @@ p { margin: 0 0 0.75em; }
 .breadcrumbs a { color: inherit; }
 .breadcrumbs a:hover { text-decoration: underline; color: #111; }
 .breadcrumbs span { color: #111; }
+@media (max-width: 959px) {
+  .breadcrumbs { padding-top: 5px; }
+}
 
 .section { padding: 1.25rem 0; }
 .section--alt { background: #f6f7f8; }

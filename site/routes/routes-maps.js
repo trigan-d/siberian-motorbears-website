@@ -329,6 +329,24 @@
     });
   }
 
+  /** Строит bounds по точкам трека и waypoints, чтобы маршрут целиком влезал в карту. */
+  function getRouteBounds(data) {
+    var points = data.track || [];
+    var waypoints = (data.waypoints || []).map(function (w) { return w.coords; });
+    var all = points.concat(waypoints);
+    if (all.length === 0) return null;
+    var bounds = L.latLngBounds([all[0][0], all[0][1]], [all[0][0], all[0][1]]);
+    all.forEach(function (p) { bounds.extend(p); });
+    return bounds.isValid() ? bounds : null;
+  }
+
+  function fitMapToRoute(map, data) {
+    var bounds = getRouteBounds(data);
+    if (bounds) {
+      map.fitBounds(bounds, { padding: [24, 24], maxZoom: 12 });
+    }
+  }
+
   function initMap(el, key) {
     var data = ROUTES[key];
     if (!data || !el) return Promise.resolve();
@@ -361,6 +379,7 @@
 
     if (typeof ROUTE_GEOMETRIES !== 'undefined' && ROUTE_GEOMETRIES[key] && ROUTE_GEOMETRIES[key].length >= 2) {
       addRoutePolyline(map, points, ROUTE_GEOMETRIES[key]);
+      fitMapToRoute(map, data);
       return Promise.resolve();
     }
 
@@ -373,9 +392,11 @@
       })
       .then(function (roadCoords) {
         addRoutePolyline(map, points, roadCoords);
+        fitMapToRoute(map, data);
       })
       .catch(function () {
         addRoutePolyline(map, points, null);
+        fitMapToRoute(map, data);
       });
   }
 

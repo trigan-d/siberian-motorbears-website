@@ -21,10 +21,13 @@
   <link rel="stylesheet" href="../css/main.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
   <style>
-    .route-card { margin: 2rem 0; padding: 1.5rem 0; }
+    .route-card { margin: 2rem 0; padding: 1.5rem 0; scroll-margin-top: 5rem; }
     .routes-section .route-card { margin-left: -1rem; margin-right: -1rem; padding: 1.5rem 1rem; }
-    .routes-section .route-card:nth-child(odd) { background: #fff; }
-    .routes-section .route-card:nth-child(even) { background: #f6f7f8; }
+    .back-to-routes-list { position: fixed; bottom: 1.5rem; right: 1rem; z-index: 50; display: inline-flex; align-items: center; justify-content: center; width: 2.5rem; height: 2.5rem; color: #666; text-decoration: none; font-size: 1.2rem; line-height: 1; border-radius: 50%; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.15); opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
+    .back-to-routes-list.is-visible { opacity: 1; pointer-events: auto; }
+    .back-to-routes-list:hover { color: #111; background: #f5f5f5; }
+    .routes-section .route-card:nth-child(odd) { background: #f6f7f8; }
+    .routes-section .route-card:nth-child(even) { background: #fff; }
     .routes-section .route-card:last-of-type { background: #fff; }
     .route-card h2 { font-size: 1.35rem; margin-bottom: 0.5rem; }
     .route-card .route-meta { color: #666; font-size: 0.95rem; margin-bottom: 1rem; }
@@ -38,6 +41,26 @@
     .route-map { height: 320px; border-radius: 8px; margin: 1rem 0; background: #e8e8e8; }
     .route-waypoint-icon { background: transparent !important; border: none !important; }
     .route-duration-badge { display: inline-block; background: #727c8f; color: #fff; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.85rem; margin-right: 0.5rem; }
+    .overview-routes-section { padding-top: 1.25rem; margin-top: 0; }
+    .overview-routes-section + .routes-section { padding-top: 0.5rem; }
+    .overview-routes-block { display: grid; grid-template-columns: 1fr 1fr; gap: 0; align-items: stretch; }
+    .overview-routes-map-wrap { display: flex; }
+    .overview-routes-map { flex: 1; height: 100%; min-height: 360px; border-radius: 8px 0 0 8px; background: #e8e8e8; }
+    .overview-routes-legend-wrap { padding: 1rem 1.5rem; border-radius: 0 8px 8px 0; }
+    @media (max-width: 767px) {
+      .overview-routes-block { grid-template-columns: 1fr; }
+      .overview-routes-map-wrap { order: 0; }
+      .overview-routes-map { min-height: 280px; border-radius: 8px 8px 0 0; }
+      .overview-routes-legend-wrap { order: 1; border-radius: 0 0 8px 8px; }
+    }
+    .overview-routes-legend { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 1.5rem; }
+    .overview-routes-legend li { break-inside: avoid; margin-bottom: 0.35rem; }
+    .overview-routes-legend a { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0; color: inherit; text-decoration: none; border-radius: 4px; transition: background 0.15s ease; }
+    .overview-routes-legend a:hover { background: rgba(0,0,0,0.06); }
+    .overview-routes-legend a.is-highlight { background: rgba(0,0,0,0.08); }
+    .overview-routes-legend .legend-swatch { flex-shrink: 0; width: 12px; height: 4px; border-radius: 2px; }
+    .overview-routes-legend .legend-days { color: #666; font-size: 0.9em; white-space: nowrap; }
+    .overview-route-tooltip { font-size: 13px; padding: 6px 10px; white-space: nowrap; }
   </style>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Главная","item":"https://siberian-motorbears.ru/"},{"@type":"ListItem","position":2,"name":"Аренда","item":"https://siberian-motorbears.ru/rent/"},{"@type":"ListItem","position":3,"name":"Идеи маршрутов","item":"https://siberian-motorbears.ru/routes/"}]}</script>
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"LocalBusiness","name":"Siberian motorbears","url":"https://siberian-motorbears.ru","logo":"https://siberian-motorbears.ru/assets/img/f69558aa-3fbc-4609-a5e5-c1abd8dfcc50-1783828.png","telephone":"+7-913-460-20-50","email":"siberian.motorbears@gmail.com","address":{"@type":"PostalAddress","addressLocality":"Кольцово","addressRegion":"Новосибирская область","streetAddress":"д. 6А"},"sameAs":["https://vk.com/siberian_motorbears","https://t.me/trigansda"]}</script>
@@ -94,6 +117,40 @@
         </div>
       </div>
     </section>
+
+    <section class="section overview-routes-section" id="overview-routes" aria-label="Общая карта маршрутов">
+      <div class="container">
+        <div class="overview-routes-block">
+          <div class="overview-routes-map-wrap">
+            <div id="overview-routes-map" class="overview-routes-map"></div>
+          </div>
+          <nav class="overview-routes-legend-wrap" aria-label="Оглавление маршрутов">
+            <ul class="overview-routes-legend" id="overview-routes-legend">
+              <li><a href="#route-3-suzun" data-route="suzun"><span class="legend-swatch" style="background:#2e7d32"></span><span class="legend-name">Сузун, Бердские скалы</span><span class="legend-days">3 дня</span></a></li>
+              <li><a href="#route-3-lakes" data-route="lakes"><span class="legend-swatch" style="background:#1565c0"></span><span class="legend-name">Озёра Карачи, Чаны</span><span class="legend-days">3 дня</span></a></li>
+              <li><a href="#route-4-yarovoye" data-route="yarovoye"><span class="legend-swatch" style="background:#c62828"></span><span class="legend-name">Яровое, Гальбштадт</span><span class="legend-days">3–4 дня</span></a></li>
+              <li><a href="#route-5-tanay" data-route="tanay"><span class="legend-swatch" style="background:#6a1b9a"></span><span class="legend-name">Танай, Шерегеш</span><span class="legend-days">5 дней</span></a></li>
+              <li><a href="#route-5-altai" data-route="altai5"><span class="legend-swatch" style="background:#00838f"></span><span class="legend-name">Алтай (Чемал)</span><span class="legend-days">5 дней</span></a></li>
+              <li><a href="#route-7-altai" data-route="altai7"><span class="legend-swatch" style="background:#ef6c00"></span><span class="legend-name">Алтай (Кату-Ярык)</span><span class="legend-days">7 дней</span></a></li>
+              <li><a href="#route-10-altai-loop" data-route="altai10"><span class="legend-swatch" style="background:#558b2f"></span><span class="legend-name">Алтай (Кош-Агач)</span><span class="legend-days">10 дней</span></a></li>
+              <li><a href="#route-6-barnaul-loop" data-route="barnaul_loop"><span class="legend-swatch" style="background:#7b1fa2"></span><span class="legend-name">Барнаул, Денисова пещера</span><span class="legend-days">5–6 дней</span></a></li>
+              <li><a href="#route-6-teletskoye" data-route="teletskoye"><span class="legend-swatch" style="background:#0277bd"></span><span class="legend-name">Телецкое озеро</span><span class="legend-days">5–6 дней</span></a></li>
+              <li><a href="#route-7-multa" data-route="multa"><span class="legend-swatch" style="background:#bf360c"></span><span class="legend-name">Мульты, Тюнгур</span><span class="legend-days">7 дней</span></a></li>
+              <li><a href="#route-8-parabel" data-route="parabel_kargasok"><span class="legend-swatch" style="background:#00695c"></span><span class="legend-name">Парабель, Каргасок</span><span class="legend-days">7–8 дней</span></a></li>
+              <li><a href="#route-10-krasnoyarsk-ergaki" data-route="krasnoyarsk_ergaki"><span class="legend-swatch" style="background:#283593"></span><span class="legend-name">Красноярск, Ергаки</span><span class="legend-days">8–10 дней</span></a></li>
+              <li><a href="#route-10-tobolsk-salekhard" data-route="tobolsk_salekhard"><span class="legend-swatch" style="background:#37474f"></span><span class="legend-name">Тобольск — Салехард</span><span class="legend-days">10–14 дней</span></a></li>
+              <li><a href="#route-14-baikal" data-route="baikal"><span class="legend-swatch" style="background:#4e342e"></span><span class="legend-name">Байкал</span><span class="legend-days">14 дней</span></a></li>
+              <li><a href="#route-18-karelia-teriberka" data-route="karelia_teriberka"><span class="legend-swatch" style="background:#795548"></span><span class="legend-name">Карелия, Териберка</span><span class="legend-days">18–24 дня</span></a></li>
+              <li><a href="#route-21-crimea" data-route="crimea"><span class="legend-swatch" style="background:#455a64"></span><span class="legend-name">Крым</span><span class="legend-days">21–28 дней</span></a></li>
+              <li><a href="#route-25-vladivostok" data-route="vladivostok"><span class="legend-swatch" style="background:#e65100"></span><span class="legend-name">Владивосток</span><span class="legend-days">25–35 дней</span></a></li>
+              <li><a href="#route-10-ski-ring" data-route="ski_ring"><span class="legend-swatch" style="background:#006064"></span><span class="legend-name">Горнолыжное кольцо Сибири</span><span class="legend-days">10–12 дней</span></a></li>
+            </ul>
+          </nav>
+        </div>
+      </div>
+    </section>
+
+    <a href="#overview-routes" id="back-to-routes-list" class="back-to-routes-list" title="К списку маршрутов" aria-label="К списку маршрутов">↑</a>
 
     <section class="section routes-section">
       <div class="container">
@@ -841,6 +898,56 @@
           <div id="map-25-vladivostok" class="route-map" data-route="vladivostok"></div>
         </article>
 
+        <!-- ========== 10–12 дней: Горнолыжное кольцо Сибири (зимний маршрут) ========== -->
+        <article class="route-card" id="route-10-ski-ring">
+          <h2>Горнолыжное кольцо Сибири</h2>
+          <p class="route-meta"><span class="route-duration-badge">10–12 дней</span> ~2000–2200 км кольцом, 4–5 дней в дороге. Зимний маршрут для любителей горных лыж и сноуборда. Кольцо по горнолыжным комплексам: катание с утра до темноты на одном ГЛК, вечером или ночью — переезд на следующий. На курортах с освещёнными трассами и вечерним катанием можно остаться до ночи.</p>
+          <p>Маршрут: Новосибирск → ГЛК Юрманка → Белокуриха и Белокуриха-2 → озеро Светлое (Лебединое) → Манжерок → ГЛК Телецкий → Шерегеш → ГЛК Танай → Новосибирск. Каждый день — новый склон; переезды между точками планируйте с учётом светового дня и состояния дорог.</p>
+
+          <div class="route-schedule">
+            <h3>Примерное расписание</h3>
+            <ul>
+              <li><strong>День 1.</strong> Выезд из Новосибирска. ГЛК Юрманка (гора Глухариная, Маслянинский р-н) — разминка на трассах. Ночёвка у Юрманки или переезд в сторону Алтая.</li>
+              <li><strong>Дни 2–3.</strong> Белокуриха и Белокуриха-2 — горнолыжный курорт Алтайского края, несколько зон катания, вечернее катание при наличии освещения. Ночёвки в Белокурихе или окрестностях.</li>
+              <li><strong>День 4.</strong> Переезд Белокуриха → Манжерок. Манжерок — курорт у Манжерокского озера, канатная дорога на Синюху. Катание до темноты, ночёвка у Манжерока.</li>
+              <li><strong>День 5.</strong> Переезд Манжерок → ГЛК Телецкий (Артыбаш, гора Кокуя). Горнолыжный комплекс у Телецкого озера. Ночёвка у курорта.</li>
+              <li><strong>Дни 6–7.</strong> Переезд ГЛК Телецкий → Шерегеш. Шерегеш — крупный горнолыжный курорт (гора Зелёная), освещённые трассы, вечернее катание. Два дня катания и отдыха в Шерегеше.</li>
+              <li><strong>День 8.</strong> Переезд Шерегеш → ГЛК Танай (Журавлево, гора Слизун). Завершение кольца. Катание, ночёвка у Таная.</li>
+              <li><strong>День 9–10.</strong> ГЛК Танай → Новосибирск. Возврат в Новосибирск с возможностью дополнительной ночёвки в пути при необходимости.</li>
+            </ul>
+          </div>
+          <div class="route-stops">
+            <h3>Предлагаемые стоянки</h3>
+            <ul>
+              <li>ГЛК Юрманка — парковки у комплекса, гостевые домики у склонов; уточняйте возможность ночёвки.</li>
+              <li>Белокуриха — отели, гостевые дома, кемпинги и парковки у курорта; зимой бронировать заранее.</li>
+              <li>Озеро Светлое (Лебединое) — смотровые площадки у заказника (платный вход), парковка; удобная остановка по пути из Белокурихи в Манжерок.</li>
+              <li>Манжерок — туркомплекс, кемпинги у озера, парковки у канатной дороги.</li>
+              <li>ГЛК Телецкий (Артыбаш) — шале, отель «Глыба», стоянки у курорта; зимой уточняйте доступность дорог.</li>
+              <li>Шерегеш — отели, шале, кемпинги у склонов; в сезон бронировать заранее.</li>
+              <li>Танай — базы у озера Танай, парковки у ГЛК «Танай».</li>
+            </ul>
+          </div>
+          <div class="route-sights">
+            <h3>Достопримечательности</h3>
+            <ul>
+              <li>Юрманка — горнолыжный комплекс в Новосибирской области, трассы для начинающих и продвинутых.</li>
+              <li>Белокуриха — курорт Алтайского края, термальные источники, горнолыжные зоны Белокуриха и Белокуриха-2.</li>
+              <li>Озеро Светлое (Лебединое) — заказник «Лебединый», единственная на Алтае зимовка лебедей-кликунов (ноябрь–апрель, пик декабрь–февраль); озеро не замерзает благодаря тёплым ключам.</li>
+              <li>Манжерок — Манжерокское озеро, канатная дорога на гору Синюха, трассы с видом на Катунь.</li>
+              <li>ГЛК Телецкий — гора Кокуя (1386 м), трассы у Телецкого озера, подъёмники, шале.</li>
+              <li>Шерегеш — гора Зелёная (1270 м), трассы до 28 км, освещённое вечернее катание, Горная Шория.</li>
+              <li>ГЛК Танай — гора Слизун у Журавлево (Кемеровская обл.), удобный выезд обратно в Новосибирск.</li>
+            </ul>
+          </div>
+          <div class="route-why">
+            <h3>Кому подойдёт</h3>
+            <p class="text-muted">Любителям горных лыж и сноуборда, которые хотят за одну поездку объехать несколько сибирских ГЛК: от подновосибирской Юрманки до алтайской Белокурихи и Манжерока, Телецкого, Шерегеша и Таная. Логистика построена так, чтобы максимум времени проводить на склонах, а переезды делать вечером или ночью. Учитывайте зимние дороги и короткий световой день; на курортах с вечерним катанием (например, Шерегеш, при наличии освещения — Белокуриха) можно продлить день на склоне.</p>
+          </div>
+
+          <div id="map-10-ski-ring" class="route-map" data-route="ski_ring"></div>
+        </article>
+
         <p class="text-muted" style="margin-top: 2rem;">
           Хотите обсудить маршрут или <a href="../rent/">взять автодом в аренду</a>? Напишите нам: <a href="mailto:siberian.motorbears@gmail.com">siberian.motorbears@gmail.com</a>, <a href="tel:+79134602050">+7 (913) 460-20-50</a>, <a href="https://t.me/trigansda" target="_blank" rel="noopener">Telegram</a>.
         </p>
@@ -861,12 +968,136 @@
   </footer>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="route-geometries.js"></script>
-  <script src="routes-maps.js"></script>
+  <script src="/routes/route-geometries.js"></script>
+  <script src="/routes/routes-maps.js"></script>
   <script>
     document.querySelector('.nav-toggle').addEventListener('click', function () {
       document.querySelector('.main-nav').classList.toggle('js-open');
     });
+
+    (function () {
+      var overview = document.getElementById('overview-routes');
+      var link = document.getElementById('back-to-routes-list');
+      if (!overview || !link) return;
+      function updateVisibility() {
+        var threshold = overview.offsetTop + overview.offsetHeight;
+        if (window.pageYOffset > threshold) link.classList.add('is-visible');
+        else link.classList.remove('is-visible');
+      }
+      window.addEventListener('scroll', updateVisibility, { passive: true });
+      window.addEventListener('resize', updateVisibility);
+      updateVisibility();
+    })();
+
+    (function initOverviewRoutesMap() {
+      var ROUTE_INFO = {
+        suzun: { name: 'Сузун, Бердские скалы', days: '3 дня', sectionId: 'route-3-suzun' },
+        lakes: { name: 'Озёра Карачи, Чаны', days: '3 дня', sectionId: 'route-3-lakes' },
+        yarovoye: { name: 'Яровое, Гальбштадт', days: '3–4 дня', sectionId: 'route-4-yarovoye' },
+        tanay: { name: 'Танай, Шерегеш', days: '5 дней', sectionId: 'route-5-tanay' },
+        altai5: { name: 'Алтай (Чемал)', days: '5 дней', sectionId: 'route-5-altai' },
+        altai7: { name: 'Алтай (Кату-Ярык)', days: '7 дней', sectionId: 'route-7-altai' },
+        altai10: { name: 'Алтай (Кош-Агач)', days: '10 дней', sectionId: 'route-10-altai-loop' },
+        barnaul_loop: { name: 'Барнаул, Денисова пещера', days: '5–6 дней', sectionId: 'route-6-barnaul-loop' },
+        teletskoye: { name: 'Телецкое озеро', days: '5–6 дней', sectionId: 'route-6-teletskoye' },
+        multa: { name: 'Мульты, Тюнгур', days: '7 дней', sectionId: 'route-7-multa' },
+        parabel_kargasok: { name: 'Парабель, Каргасок', days: '7–8 дней', sectionId: 'route-8-parabel' },
+        krasnoyarsk_ergaki: { name: 'Красноярск, Ергаки', days: '8–10 дней', sectionId: 'route-10-krasnoyarsk-ergaki' },
+        tobolsk_salekhard: { name: 'Тобольск — Салехард', days: '10–14 дней', sectionId: 'route-10-tobolsk-salekhard' },
+        baikal: { name: 'Байкал', days: '14 дней', sectionId: 'route-14-baikal' },
+        karelia_teriberka: { name: 'Карелия, Териберка', days: '18–24 дня', sectionId: 'route-18-karelia-teriberka' },
+        crimea: { name: 'Крым', days: '21–28 дней', sectionId: 'route-21-crimea' },
+        vladivostok: { name: 'Владивосток', days: '25–35 дней', sectionId: 'route-25-vladivostok' },
+        ski_ring: { name: 'Горнолыжное кольцо Сибири', days: '10–12 дней', sectionId: 'route-10-ski-ring' }
+      };
+      var ROUTE_ORDER = ['suzun','lakes','yarovoye','tanay','altai5','altai7','altai10','barnaul_loop','teletskoye','multa','parabel_kargasok','krasnoyarsk_ergaki','tobolsk_salekhard','baikal','karelia_teriberka','crimea','vladivostok','ski_ring'];
+      var PALETTE = ['#2e7d32','#1565c0','#c62828','#6a1b9a','#00838f','#ef6c00','#558b2f','#7b1fa2','#0277bd','#bf360c','#00695c','#283593','#37474f','#4e342e','#795548','#455a64','#e65100','#004d40','#006064'];
+      var simplifyStep = 80;
+
+      function simplify(coords, step) {
+        if (!coords || coords.length < 2 || step <= 1) return coords;
+        var out = [coords[0]];
+        for (var i = step; i < coords.length - 1; i += step) out.push(coords[i]);
+        out.push(coords[coords.length - 1]);
+        return out;
+      }
+
+      var mapEl = document.getElementById('overview-routes-map');
+      var legendEl = document.getElementById('overview-routes-legend');
+      if (!mapEl || !legendEl || typeof L === 'undefined' || typeof ROUTE_GEOMETRIES === 'undefined') return;
+
+      var map = L.map('overview-routes-map', { zoomControl: true }).setView([55, 82], 6);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(map);
+
+      var layers = {};
+      var bounds = null;
+
+      ROUTE_ORDER.forEach(function (key, i) {
+        var geom = ROUTE_GEOMETRIES[key];
+        if (!geom || geom.length < 2) return;
+        var info = ROUTE_INFO[key];
+        var coords = simplify(geom, simplifyStep);
+        var color = PALETTE[i % PALETTE.length];
+        var layer = L.polyline(coords, { color: color, weight: 2.5, opacity: 0.85 });
+        if (info) {
+          layer.bindTooltip('<strong>' + info.name + '</strong><br>' + info.days, { permanent: false, direction: 'top', className: 'overview-route-tooltip', offset: [0, -4] });
+        }
+        layer.addTo(map);
+        layers[key] = { layer: layer, sectionId: info ? info.sectionId : null };
+        coords.forEach(function (p) {
+          if (bounds) bounds.extend(p); else bounds = L.latLngBounds(p, p);
+        });
+      });
+
+      if (bounds && bounds.isValid()) map.fitBounds(bounds, { padding: [8, 8], maxZoom: 12 });
+
+      function setHighlight(routeKey) {
+        legendEl.querySelectorAll('a').forEach(function (a) {
+          a.classList.toggle('is-highlight', a.getAttribute('data-route') === routeKey);
+        });
+        Object.keys(layers).forEach(function (k) {
+          layers[k].layer.setStyle({ weight: k === routeKey ? 5 : 2.5, opacity: k === routeKey ? 1 : 0.85 });
+        });
+      }
+      function clearHighlight() {
+        legendEl.querySelectorAll('a').forEach(function (a) { a.classList.remove('is-highlight'); });
+        Object.keys(layers).forEach(function (k) {
+          layers[k].layer.setStyle({ weight: 2.5, opacity: 0.85 });
+        });
+      }
+
+      legendEl.querySelectorAll('a[data-route]').forEach(function (a) {
+        var key = a.getAttribute('data-route');
+        a.addEventListener('mouseenter', function () { setHighlight(key); });
+        a.addEventListener('mouseleave', clearHighlight);
+      });
+
+      var mapContainer = map.getContainer();
+      Object.keys(layers).forEach(function (k) {
+        var layer = layers[k].layer;
+        var sectionId = layers[k].sectionId;
+        layer.on('mouseover', function (e) {
+          setHighlight(k);
+          mapContainer.style.cursor = 'pointer';
+          if (layer.getTooltip()) layer.openTooltip(e.latlng);
+        });
+        layer.on('mousemove', function (e) {
+          var tooltip = layer.getTooltip();
+          if (tooltip && tooltip.isOpen()) tooltip.setLatLng(e.latlng);
+        });
+        layer.on('mouseout', function () {
+          clearHighlight();
+          mapContainer.style.cursor = '';
+          layer.closeTooltip();
+        });
+        layer.on('click', function () {
+          if (sectionId) {
+            var el = document.getElementById(sectionId);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        });
+      });
+    })();
   </script>
 </body>
 </html>

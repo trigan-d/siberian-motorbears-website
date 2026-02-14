@@ -1,0 +1,46 @@
+---
+description: Контекст по блогу: структура, скрипты, порядок вызовов, индивидуальные страницы, заголовки
+globs: scripts/*blog*.py, scripts/update_blog.py, scripts/save_blog_entries.py, scripts/fetch_full_blog.py, site/blog/**/*
+alwaysApply: false
+---
+
+# Блог: структура и скрипты
+
+## Пути и файлы
+
+| Назначение | Путь |
+|------------|------|
+| Записи (JSON + медиа) | `site/blog/entries/` — `entry_1.json`…`entry_N.json`, `entry_N_1.jpg` и т.д. |
+| Страница блога | `site/blog/index.html` — список постов, вшиты первые 10, остальные подгружаются по скроллу |
+| Индивидуальные страницы записей | `site/blog/entry_{N}_{slug}.html` (slug из заголовка, транслит) |
+| Манифест страниц | `site/blog/entry_pages_manifest.json` — `{"1":"entry_1_....html", ...}` |
+| Заголовки записей | `site/blog/entry_titles.json` — `{"1":"Медведи как автодома", ...}` (для slug и title) |
+| Sitemap | `site/sitemap.xml` — содержит URL всех страниц записей блога |
+
+В `index.html`: массивы `BLOG_ENTRIES` (имена entry_X.json для подгрузки) и `BLOG_ENTRY_PAGES` (entry_X.json → имя HTML-страницы). Вшитый блок между маркерами `<!-- BLOG_INITIAL_ENTRIES -->` … `<!-- /BLOG_INITIAL_ENTRIES -->`.
+
+## Скрипты (запуск из корня репозитория)
+
+| Скрипт | Назначение |
+|--------|------------|
+| **update_blog.py** | Ежедневное обновление: последние 5 постов VK → добавить/обновить/удалить записи, обновить index, вызвать render_blog_entry_pages и render_blog_initial. Требует `VK_ACCESS_TOKEN` (scripts/.env). |
+| **fetch_full_blog.py** | Полная перекачка ленты: очищает entries, качает все посты, обновляет index и вшитые 10. Не вызывает render_blog_entry_pages — после полной перекачки нужно вручную запустить render_blog_entry_pages.py 200 и render_blog_initial.py (и при необходимости почистить старые entry_*_*.html). |
+| **render_blog_entry_pages.py [count]** | Генерирует индивидуальные HTML-страницы для непустых записей (по умолчанию 5). Обновляет manifest, entry_titles.json (добавляет недостающие заголовки), BLOG_ENTRY_PAGES в index, sitemap. **Важно:** при count &lt; полного числа записей скрипт удаляет из sitemap все URL записей и вставляет только сгенерированные — не запускать с малым count для «только обновить две страницы». Для полного набора: `render_blog_entry_pages.py 200`. |
+| **render_blog_initial.py** | Перегенерирует блок вшитых 10 постов в index.html; ссылки на индивидуальные страницы берёт из entry_pages_manifest.json. Вызывать после смены заголовков/страниц, чтобы ссылки (дата и т.д.) на /blog/ были актуальными. |
+| **save_blog_entries.py** | Скачивает 30 последних постов в entries (используется и как библиотека). |
+
+## Заголовки записей
+
+- Источник: `site/blog/entry_titles.json` (ключи "1"…"N"). Если ключа нет — используется автогенерация по первому предложению текста (`title_from_text` в render_blog_entry_pages.py); при генерации страниц новые заголовки дописываются в entry_titles.json.
+- Ручная правка: редактировать entry_titles.json, затем запустить `render_blog_entry_pages.py 200` и `render_blog_initial.py`.
+- При обновлении блога из VK (по правилу blog-vk-update.mdc): после update_blog сгенерировать осмысленные заголовки для двух самых свежих записей, обновить entry_titles.json, затем render_blog_entry_pages.py 200 и render_blog_initial.py.
+
+## Удаление записи (пост удалён в VK)
+
+В update_blog.py при обнаружении удалённого поста вызывается `delete_entry_fully(entry_num, id_to_num)`: удаляются JSON и медиа записи, затем `render_blog_entry_pages.delete_entry_page(entry_num)` — удаляется HTML-страница записи, запись из manifest, строка из sitemap, обновляется BLOG_ENTRY_PAGES в index.
+
+## Порядок при ручных действиях
+
+- Только обновить данные из VK: `update_blog.py` (внутри уже вызываются render_blog_entry_pages и render_blog_initial).
+- Поменять заголовки (entry_titles.json): затем `render_blog_entry_pages.py 200` и `render_blog_initial.py`.
+- Полная перекачка (fetch_full_blog.py): после неё — `render_blog_entry_pages.py 200`, `render_blog_initial.py`; при необходимости удалить старые `site/blog/entry_*_*.html`, которых нет в новом manifest.

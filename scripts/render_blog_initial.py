@@ -82,7 +82,12 @@ def format_date(ts: int) -> str:
     return f"{d.day} {MONTHS_RU[d.month - 1]} {d.year}"
 
 
-def render_entry(data: dict) -> str:
+def render_entry(
+    data: dict,
+    *,
+    entry_page_filename: str | None = None,
+    date_is_link: bool = True,
+) -> str:
     date_ts = data.get("date", 0)
     date_str = format_date(date_ts)
     iso_date = datetime.fromtimestamp(date_ts, tz=timezone.utc).strftime("%Y-%m-%d")
@@ -111,11 +116,19 @@ def render_entry(data: dict) -> str:
         )
     media_html = '<div class="product-block__media">' + "".join(media_parts) + "</div>" if has_media else '<div class="product-block__media"></div>'
 
-    date_tag = f'<a class="blog-entry__date" href="{html.escape(vk_url)}" target="_blank" rel="noopener"><time datetime="{iso_date}">{html.escape(date_str)}</time></a>'
+    vk_comment = f' <a class="blog-entry__vk-comment" href="{html.escape(vk_url)}" target="_blank" rel="noopener">комментировать в VK</a>'
+    if not date_is_link:
+        date_tag = f'<span class="blog-entry__date"><time datetime="{iso_date}">{html.escape(date_str)}</time></span>'
+    elif entry_page_filename:
+        date_tag = f'<a class="blog-entry__date" href="{html.escape(entry_page_filename)}"><time datetime="{iso_date}">{html.escape(date_str)}</time></a>'
+    else:
+        date_tag = f'<a class="blog-entry__date" href="{html.escape(vk_url)}" target="_blank" rel="noopener"><time datetime="{iso_date}">{html.escape(date_str)}</time></a>'
+
+    meta_html = f'<div class="blog-entry__meta">{date_tag}{vk_comment}</div>'
 
     return (
         f'<article class="blog-entry product-block{no_media_class}">'
-        f'<div class="product-block__info">{date_tag}{text_html}</div>'
+        f'<div class="product-block__info">{meta_html}{text_html}</div>'
         f"{media_html}</article>"
     )
 
@@ -128,6 +141,14 @@ def main() -> None:
         print("Файл index.html не найден:", INDEX_HTML, file=sys.stderr)
         sys.exit(1)
 
+    manifest = {}
+    manifest_path = INDEX_HTML.parent / "entry_pages_manifest.json"
+    if manifest_path.exists():
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
     initial_filenames = get_initial_entry_filenames(10)
     html_parts = []
     for filename in initial_filenames:
@@ -139,7 +160,12 @@ def main() -> None:
             data = json.loads(path.read_text(encoding="utf-8"))
             if is_entry_empty(data):
                 continue
-            html_parts.append(render_entry(data))
+            m = re.match(r"^entry_(\d+)\.json$", filename)
+            entry_num = int(m.group(1)) if m else None
+            entry_page = manifest.get(str(entry_num)) if entry_num else None
+            html_parts.append(
+                render_entry(data, entry_page_filename=entry_page, date_is_link=True)
+            )
         except Exception as e:
             print("Ошибка при разборе", filename, e, file=sys.stderr)
 

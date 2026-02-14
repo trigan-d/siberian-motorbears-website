@@ -78,7 +78,7 @@ def get_all_entry_filenames_sorted_desc() -> list[str]:
 
 
 def update_index_blog_entries(filenames: list[str]) -> None:
-    """Подставить в index.html массив BLOG_ENTRIES (без первых 10 — они вшиты)."""
+    """Подставить в index.html массив BLOG_ENTRIES и BLOG_ENTRY_PAGES."""
     if not INDEX_HTML.exists():
         return
     text = INDEX_HTML.read_text(encoding="utf-8")
@@ -92,6 +92,16 @@ def update_index_blog_entries(filenames: list[str]) -> None:
         print("В index.html не найден массив BLOG_ENTRIES.", file=sys.stderr)
         return
     new_text = pattern.sub(new_array, text, count=1)
+    manifest_path = INDEX_HTML.parent / "entry_pages_manifest.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        entry_pages = {f"entry_{k}.json": v for k, v in manifest.items()}
+    except Exception:
+        entry_pages = {}
+    new_entry_pages = "    var BLOG_ENTRY_PAGES = " + json.dumps(entry_pages, ensure_ascii=False) + ";"
+    pattern_pages = re.compile(r"var BLOG_ENTRY_PAGES = \s*[^;]+;", re.DOTALL)
+    if pattern_pages.search(new_text):
+        new_text = pattern_pages.sub(new_entry_pages, new_text, count=1)
     INDEX_HTML.write_text(new_text, encoding="utf-8")
 
 

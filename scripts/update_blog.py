@@ -57,7 +57,7 @@ def delete_entry_media(entry_num: int) -> None:
 
 
 def delete_entry_fully(entry_num: int, id_to_num: dict) -> None:
-    """Удалить запись целиком (json и медиа), убрать из id_to_num."""
+    """Удалить запись целиком (json и медиа), индивидуальную страницу, манифест/sitemap; убрать из id_to_num."""
     delete_entry_media(entry_num)
     path = OUT_DIR / f"entry_{entry_num}.json"
     if path.exists():
@@ -69,6 +69,8 @@ def delete_entry_fully(entry_num: int, id_to_num: dict) -> None:
         except Exception:
             pass
         path.unlink()
+    import render_blog_entry_pages
+    render_blog_entry_pages.delete_entry_page(entry_num)
 
 
 def post_unchanged(vk_post: dict, our_data: dict) -> bool:
@@ -105,7 +107,7 @@ def get_all_entry_filenames_sorted_desc() -> list[str]:
 
 
 def update_index_blog_entries(filenames: list[str]) -> None:
-    """Подставить в index.html массив BLOG_ENTRIES (без первых 10 — они вшиты)."""
+    """Подставить в index.html массив BLOG_ENTRIES и BLOG_ENTRY_PAGES (без первых 10 — они вшиты)."""
     if not INDEX_HTML.exists():
         return
     text = INDEX_HTML.read_text(encoding="utf-8")
@@ -124,6 +126,19 @@ def update_index_blog_entries(filenames: list[str]) -> None:
         print("В index.html не найден массив BLOG_ENTRIES.", file=sys.stderr)
         return
     new_text = pattern.sub(new_array, text, count=1)
+
+    # BLOG_ENTRY_PAGES: entry_N.json → entry_N_slug.html (из манифеста страниц записей)
+    manifest_path = INDEX_HTML.parent / "entry_pages_manifest.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        entry_pages = {f"entry_{k}.json": v for k, v in manifest.items()}
+    except Exception:
+        entry_pages = {}
+    new_entry_pages = "    var BLOG_ENTRY_PAGES = " + json.dumps(entry_pages, ensure_ascii=False) + ";"
+    pattern_pages = re.compile(r"var BLOG_ENTRY_PAGES = \s*[^;]+;", re.DOTALL)
+    if pattern_pages.search(new_text):
+        new_text = pattern_pages.sub(new_entry_pages, new_text, count=1)
+
     INDEX_HTML.write_text(new_text, encoding="utf-8")
     print("Обновлён список BLOG_ENTRIES в index.html (записей для подгрузки:", len(js_entries), ")")
 
@@ -212,6 +227,10 @@ def main() -> None:
     filenames = get_all_entry_filenames_sorted_desc()
     filenames = [f for f in filenames if not is_entry_file_empty(OUT_DIR / f)]
     update_index_blog_entries(filenames)
+
+    # Индивидуальные страницы записей и sitemap
+    import render_blog_entry_pages
+    render_blog_entry_pages.main(count=len(filenames))
 
     # Перегенерировать 10 вшитых постов
     import render_blog_initial

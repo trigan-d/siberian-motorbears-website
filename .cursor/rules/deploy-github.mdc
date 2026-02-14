@@ -1,0 +1,31 @@
+---
+description: Как деплоить сайт на GitHub (GitHub Pages)
+alwaysApply: true
+---
+
+# Деплой на GitHub
+
+Сайт публикуется через **GitHub Pages**: при push в ветку `main` workflow деплоит папку **site** на https://siberian-motorbears.ru (и trigan-d.github.io/siberian-motorbears-website).
+
+## Как выполнить деплой по запросу пользователя
+
+1. **Запустить скрипт** (предпочтительно):
+   ```bash
+   cd /home/trigan-d/Desktop/siberian-motorbears && ./scripts/deploy-github.sh
+   ```
+   Скрипт сам подхватывает `.env` из корня или из `scripts/.env`, делает `git add -A`, коммит и `git push origin main`. Если изменений нет — выведет «Нет изменений для коммита.» и выйдет с 0.
+
+2. **Если скрипт недоступен** — вручную:
+   - Подгрузить учётные данные: `source .env` или `source scripts/.env`
+   - Выставить `GITHUB_USER`, `GITHUB_TOKEN`, `GIT_ASKPASS="$PWD/scripts/git-askpass.sh"`
+   - Выполнить: `git add -A`, `git commit -m "..."`, `git push origin main`
+
+## Учётные данные
+
+- В **.env** (корень) или **scripts/.env** должны быть: `GITHUB_USER`, `GITHUB_TOKEN` (Personal Access Token с правом `repo`, не пароль).
+- **scripts/git-askpass.sh** вызывается git при запросе логина/пароля и отдаёт значения из переменных окружения.
+- Файлы `.env` в .gitignore, в репозиторий не коммитить.
+
+## Сообщение коммита
+
+По умолчанию скрипт использует сообщение «Update site». Можно передать аргумент: `./scripts/deploy-github.sh "Краткое описание правок"`.

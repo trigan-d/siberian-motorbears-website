@@ -530,10 +530,12 @@
     if (!waypoints || !waypoints.length) return;
     waypoints.forEach(function (wp) {
       var popupTitle = wp.type === 'stop' ? 'Стоянка' : 'Достопримечательность';
+      var content = '<strong>' + popupTitle + '</strong><br>' + wp.title;
       var icon = createWaypointIcon(wp.type);
       L.marker(wp.coords, { icon: icon })
         .addTo(map)
-        .bindPopup('<strong>' + popupTitle + '</strong><br>' + wp.title);
+        .bindTooltip(content, { permanent: false, direction: 'top', className: 'route-waypoint-tooltip', offset: [0, -12] })
+        .bindPopup(content);
     });
   }
 
@@ -565,9 +567,13 @@
     }).addTo(map);
 
     var points = data.track || [];
-    L.marker(points[0]).addTo(map).bindPopup('Новосибирск (старт)');
+    L.marker(points[0]).addTo(map)
+      .bindTooltip('Новосибирск (старт)', { permanent: false, direction: 'top', className: 'route-waypoint-tooltip', offset: [0, -12] })
+      .bindPopup('Новосибирск (старт)');
     if (points.length > 1 && (points[points.length - 1][0] !== points[0][0] || points[points.length - 1][1] !== points[0][1])) {
-      L.marker(points[points.length - 1]).addTo(map).bindPopup('Финиш');
+      L.marker(points[points.length - 1]).addTo(map)
+        .bindTooltip('Финиш', { permanent: false, direction: 'top', className: 'route-waypoint-tooltip', offset: [0, -12] })
+        .bindPopup('Финиш');
     }
 
     addWaypointMarkers(map, data.waypoints);

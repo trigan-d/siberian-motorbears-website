@@ -40,6 +40,7 @@
     .route-sights ul { list-style: disc; margin-left: 1.25rem; }
     .route-map { height: 320px; border-radius: 8px; margin: 1rem 0; background: #e8e8e8; }
     .route-waypoint-icon { background: transparent !important; border: none !important; }
+    .route-waypoint-tooltip { font-size: 13px; padding: 6px 10px; max-width: 280px; white-space: normal; }
     .route-duration-badge { display: inline-block; background: #727c8f; color: #fff; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.85rem; margin-right: 0.5rem; }
     .overview-routes-section { padding-top: 1.25rem; margin-top: 0; }
     .overview-routes-section + .routes-section { padding-top: 0.5rem; }
@@ -1010,6 +1011,7 @@
         vladivostok: { name: 'Владивосток', days: '25–35 дней', sectionId: 'route-25-vladivostok' },
         ski_ring: { name: 'Горнолыжное кольцо Сибири', days: '10–12 дней', sectionId: 'route-10-ski-ring' }
       };
+      // Порядок маршрутов: по длительности (короткие → длинные). ski_ring всегда последний, не участвует в сортировке (см. README-ROUTES.md).
       var ROUTE_ORDER = ['suzun','lakes','yarovoye','tanay','altai5','altai7','altai10','barnaul_loop','teletskoye','multa','parabel_kargasok','krasnoyarsk_ergaki','tobolsk_salekhard','baikal','karelia_teriberka','crimea','vladivostok','ski_ring'];
       var PALETTE = ['#2e7d32','#1565c0','#c62828','#6a1b9a','#00838f','#ef6c00','#558b2f','#7b1fa2','#0277bd','#bf360c','#00695c','#283593','#37474f','#4e342e','#795548','#455a64','#e65100','#004d40','#006064'];
       var simplifyStep = 80;

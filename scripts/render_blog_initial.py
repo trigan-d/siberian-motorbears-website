@@ -22,6 +22,22 @@ ENTRIES_DIR = REPO_ROOT / "site" / "blog" / "entries"
 INDEX_HTML = REPO_ROOT / "site" / "blog" / "index.html"
 ENTRIES_BASE = "entries/"
 
+# URL в тексте делаем кликабельными
+_URL_RE = re.compile(r"https?://[^\s<>\"']+")
+
+
+def linkify_text(text: str) -> str:
+    """Заменить URL в тексте на <a href="..."> с экранированием HTML."""
+    result = []
+    last = 0
+    for m in _URL_RE.finditer(text):
+        result.append(html.escape(text[last : m.start()]))
+        url = m.group(0)
+        result.append(f'<a href="{html.escape(url)}" target="_blank" rel="noopener">{html.escape(url)}</a>')
+        last = m.end()
+    result.append(html.escape(text[last:]))
+    return "".join(result)
+
 
 def is_entry_empty(data: dict) -> bool:
     """Репост/пустая запись: нет текста, нет фото, нет видео."""
@@ -73,7 +89,7 @@ def render_entry(data: dict) -> str:
     text = (data.get("text") or "").strip()
     text_html = ""
     if text:
-        parts = [f'<p class="blog-entry__text">{html.escape(p)}</p>' for p in text.split("\n")]
+        parts = [f'<p class="blog-entry__text">{linkify_text(p)}</p>' for p in text.split("\n")]
         text_html = '<div class="blog-entry__body">' + "".join(parts) + "</div>"
     photos = data.get("photos") or []
     video = (data.get("video") or {}).get("embed_url")

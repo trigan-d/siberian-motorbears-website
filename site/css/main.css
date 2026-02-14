@@ -250,6 +250,8 @@ p { margin: 0 0 0.75em; }
 .blog-entry__body { margin-bottom: 0; }
 .blog-entry__text { margin: 0 0 0.5em; white-space: pre-wrap; }
 .blog-entry__text:last-child { margin-bottom: 0; }
+.blog-entry__body a { color: #0a5cb8; text-decoration: underline; }
+.blog-entry__body a:hover { color: #084a94; }
 .blog-entry .product-block__media .carousel { border-radius: 8px; overflow: hidden; }
 .blog-entry .product-block__media .carousel .swiper { aspect-ratio: 4/3; }
 .blog-entry__video.video-wrap { margin: 0; width: 100%; aspect-ratio: 4/3; padding-bottom: 0; height: auto; position: relative; }

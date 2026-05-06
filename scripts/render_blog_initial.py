@@ -20,6 +20,7 @@ MONTHS_RU = (
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ENTRIES_DIR = REPO_ROOT / "site" / "blog" / "entries"
 INDEX_HTML = REPO_ROOT / "site" / "blog" / "index.html"
+EN_INDEX_HTML = REPO_ROOT / "site" / "en" / "blog" / "index.html"
 ENTRIES_BASE = "entries/"
 
 # URL в тексте делаем кликабельными
@@ -37,6 +38,15 @@ def linkify_text(text: str) -> str:
         last = m.end()
     result.append(html.escape(text[last:]))
     return "".join(result)
+
+
+def entry_body_text(data: dict, *, body_locale: str) -> str:
+    """Текст записи для разметки: при EN — text_en, иначе русский text."""
+    if body_locale == "en":
+        te = (data.get("text_en") or "").strip()
+        if te:
+            return te
+    return (data.get("text") or "").strip()
 
 
 def is_entry_empty(data: dict) -> bool:
@@ -77,8 +87,10 @@ def get_initial_entry_filenames(count: int = 10) -> list[str]:
     return result
 
 
-def format_date(ts: int) -> str:
+def format_date(ts: int, *, locale: str = "ru") -> str:
     d = datetime.fromtimestamp(ts, tz=timezone.utc)
+    if locale == "en":
+        return d.strftime("%B ") + str(d.day) + d.strftime(", %Y")
     return f"{d.day} {MONTHS_RU[d.month - 1]} {d.year}"
 
 
@@ -87,11 +99,14 @@ def render_entry(
     *,
     entry_page_filename: str | None = None,
     date_is_link: bool = True,
+    date_locale: str = "ru",
+    body_locale: str = "ru",
+    entries_base: str | None = None,
 ) -> str:
     date_ts = data.get("date", 0)
-    date_str = format_date(date_ts)
+    date_str = format_date(date_ts, locale=date_locale)
     iso_date = datetime.fromtimestamp(date_ts, tz=timezone.utc).strftime("%Y-%m-%d")
-    text = (data.get("text") or "").strip()
+    text = entry_body_text(data, body_locale=body_locale)
     text_html = ""
     if text:
         parts = [f'<p class="blog-entry__text">{linkify_text(p)}</p>' for p in text.split("\n")]
@@ -102,10 +117,11 @@ def render_entry(
     has_media = bool(photos or video)
     no_media_class = " blog-entry--no-media" if not has_media else ""
 
+    eb = entries_base if entries_base is not None else ENTRIES_BASE
     media_parts = []
     if photos:
         slides = "".join(
-            f'<div><img src="{ENTRIES_BASE}{html.escape(f)}" alt="" loading="lazy"></div>' for f in photos
+            f'<div><img src="{eb}{html.escape(f)}" alt="" loading="lazy"></div>' for f in photos
         )
         media_parts.append(f'<div class="carousel"><div class="carousel-slides">{slides}</div></div>')
     if video:
@@ -116,7 +132,10 @@ def render_entry(
         )
     media_html = '<div class="product-block__media">' + "".join(media_parts) + "</div>" if has_media else '<div class="product-block__media"></div>'
 
-    vk_comment = f' <a class="blog-entry__vk-comment" href="{html.escape(vk_url)}" target="_blank" rel="noopener">комментировать в VK</a>'
+    if body_locale == "en":
+        vk_comment = f' <a class="blog-entry__vk-comment" href="{html.escape(vk_url)}" target="_blank" rel="noopener">comment on VK</a>'
+    else:
+        vk_comment = f' <a class="blog-entry__vk-comment" href="{html.escape(vk_url)}" target="_blank" rel="noopener">комментировать в VK</a>'
     if not date_is_link:
         date_tag = f'<span class="blog-entry__date"><time datetime="{iso_date}">{html.escape(date_str)}</time></span>'
     elif entry_page_filename:
@@ -131,6 +150,102 @@ def render_entry(
         f'<div class="product-block__info">{meta_html}{text_html}</div>'
         f"{media_html}</article>"
     )
+
+
+def ru_blog_index_to_en(html: str) -> str:
+    """Собрать английский blog/index.html из русского (пути /en/blog/, медиа из ../../blog/entries/)."""
+    t = html
+    pairs = [
+        ('lang="ru"', 'lang="en"'),
+        ('href="../assets/', 'href="../../assets/'),
+        ('src="../assets/', 'src="../../assets/'),
+        ('href="../css/', 'href="../../css/'),
+        ('href="../js/', 'href="../../js/'),
+        ('src="../js/', 'src="../../js/'),
+        ('src="entries/', 'src="../../blog/entries/'),
+        ('href="entries/', 'href="../../blog/entries/'),
+        ("var entriesBase = 'entries/';", "var entriesBase = '../../blog/entries/';"),
+        ("toLocaleDateString('ru-RU'", "toLocaleDateString('en-US'"),
+        ('комментировать в VK', 'comment on VK'),
+        ('Загрузка…', 'Loading…'),
+        ('Читать дальше', 'Load more'),
+        ('Записи закончились.', 'No more posts.'),
+        ('aria-label="Меню"', 'aria-label="Menu"'),
+        ('aria-label="Хлебные крошки"', 'aria-label="Breadcrumbs"'),
+        ('>Главная</a>', '>Home</a>'),
+        ('>Блог</span>', '>Blog</span>'),
+        ('>О нас</a>', '>About</a>'),
+        ('>Производство</a>', '>Manufacturing</a>'),
+        ('>Кемпер Барибал</a>', '>Baribal camper</a>'),
+        ('>Автодом Панда</a>', '>Panda motorhome</a>'),
+        ('>Примеры работ</a>', '>Portfolio</a>'),
+        ('>Аренда</a>', '>Rental</a>'),
+        ('>Барибал Барон</a>', '>Baribal Baron</a>'),
+        ('>Панда Мия</a>', '>Panda Mia</a>'),
+        ('>Маршруты</a>', '>Trip ideas</a>'),
+        ('>Контакты</a>', '>Contact</a>'),
+        ('>Телеграм</a>', '>Telegram</a>'),
+        ('>Блог</a>', '>Blog</a>'),
+        ('>реквизиты</a>', '>Legal</a>'),
+        ('aria-label="Контакты"', 'aria-label="Contact"'),
+        ('aria-label="Вконтакте"', 'aria-label="VK"'),
+        ('aria-label="Электронная почта"', 'aria-label="Email"'),
+        ('aria-label="Номер телефона"', 'aria-label="Phone"'),
+        ('<title>Блог о производстве и прокате автодомов | Siberian motorbears</title>',
+         '<title>Motorhome manufacturing & rental blog | Siberian motorbears</title>'),
+        ('content="Новости и посты сообщества Siberian motorbears: кемперы, путешествия, аренда."',
+         'content="News from Siberian motorbears: campers, road trips, rentals."'),
+        ('content="блог автодомов, Siberian motorbears', 'content="motorhome blog, Siberian motorbears'),
+        ('<meta property="og:locale" content="ru_RU">', '<meta property="og:locale" content="en_US">'),
+        ('https://siberian-motorbears.ru/blog/"', 'https://siberian-motorbears.ru/en/blog/"'),
+        ('<meta property="og:title" content="Блог о производстве и прокате автодомов | Siberian motorbears">',
+         '<meta property="og:title" content="Motorhome manufacturing & rental blog | Siberian motorbears">'),
+        ('<meta property="og:description" content="Новости и посты сообщества Siberian motorbears: кемперы, путешествия, аренда."',
+         '<meta property="og:description" content="News from Siberian motorbears: campers, road trips, rentals."'),
+        ('<meta name="twitter:title" content="Блог о производстве и прокате автодомов | Siberian motorbears">',
+         '<meta name="twitter:title" content="Motorhome manufacturing & rental blog | Siberian motorbears">'),
+        ('<meta name="twitter:description" content="Новости и посты сообщества Siberian motorbears: кемперы, путешествия, аренда."',
+         '<meta name="twitter:description" content="News from Siberian motorbears: campers, road trips, rentals."'),
+        ('<h1 style="font-size: 1.35rem;">Блог о производстве и прокате автодомов</h1>',
+         '<h1 style="font-size: 1.35rem;">Motorhome manufacturing & rental blog</h1>'),
+        ('Сообщество VK', 'VK community'),
+        ("Не удалось загрузить записи.", "Could not load posts."),
+        (
+            "<!-- Яндекс.Метрика: заменить 66322963 на номер счётчика во всём проекте -->",
+            "<!-- Yandex.Metrica: replace 66322963 with your counter id site-wide -->",
+        ),
+        ("<!-- Яндекс.Метрика -->", "<!-- Yandex.Metrica -->"),
+        (
+            "<!-- VK Пиксель (Top.Mail.Ru), код 3727349 -->",
+            "<!-- VK pixel (Top.Mail.Ru) id 3727349 -->",
+        ),
+        (
+            "// Записи, подгружаемые по кнопке «Load more» (первые 10 уже встроены в HTML)",
+            "// Entries loaded via «Load more» (first 10 are inlined in HTML)",
+        ),
+        (
+            "var text = (data.text || '').trim();",
+            "var text = ((data.text_en != null && String(data.text_en).trim() !== '') ? data.text_en : data.text || '').trim();",
+        ),
+    ]
+    for a, b in pairs:
+        t = t.replace(a, b)
+    t = t.replace('<script src="/js/locale-redirect.js"></script>\n', '')
+    t = re.sub(
+        r'<script type="application/ld\+json">\{"@context":"https://schema\.org","@type":"BreadcrumbList","itemListElement":\[[^\]]+\]\}</script>',
+        '<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://siberian-motorbears.ru/en/"},{"@type":"ListItem","position":2,"name":"Blog","item":"https://siberian-motorbears.ru/en/blog/"}]}</script>',
+        t,
+        count=1,
+    )
+    t = t.replace(
+        '<meta name="keywords" content="motorhome blog, Siberian motorbears, кемперы, прокат автодомов, производство кемперов, Новосибирск">',
+        '<meta name="keywords" content="motorhome blog, Siberian motorbears, campers, rental, manufacturing, Novosibirsk">',
+    )
+    t = t.replace(
+        '<div id="blog-error" class="blog-error" hidden>Could not load posts. Откройте страницу через веб‑сервер (не file://), например: в папке <code>site</code> выполните <code>python3 -m http.server 8000</code> и откройте <a href="http://localhost:8000/blog/">http://localhost:8000/blog/</a>.</div>',
+        '<div id="blog-error" class="blog-error" hidden>Could not load posts. Serve the site over HTTP (not file://), e.g. run <code>python3 -m http.server 8000</code> in the <code>site</code> folder and open <a href="http://localhost:8000/en/blog/">http://localhost:8000/en/blog/</a>.</div>',
+    )
+    return t
 
 
 def main() -> None:
@@ -151,6 +266,7 @@ def main() -> None:
 
     initial_filenames = get_initial_entry_filenames(10)
     html_parts = []
+    html_parts_en = []
     for filename in initial_filenames:
         path = ENTRIES_DIR / filename
         if not path.exists():
@@ -166,10 +282,20 @@ def main() -> None:
             html_parts.append(
                 render_entry(data, entry_page_filename=entry_page, date_is_link=True)
             )
+            html_parts_en.append(
+                render_entry(
+                    data,
+                    entry_page_filename=entry_page,
+                    date_is_link=True,
+                    date_locale="en",
+                    body_locale="en",
+                )
+            )
         except Exception as e:
             print("Ошибка при разборе", filename, e, file=sys.stderr)
 
     content = "\n".join(html_parts)
+    content_en = "\n".join(html_parts_en)
     marker_start = "<!-- BLOG_INITIAL_ENTRIES -->"
     marker_end = "<!-- /BLOG_INITIAL_ENTRIES -->"
     pattern = re.compile(re.escape(marker_start) + r".*?" + re.escape(marker_end), re.DOTALL)
@@ -183,6 +309,12 @@ def main() -> None:
     new_index = pattern.sub(new_block, index_text, count=1)
     INDEX_HTML.write_text(new_index, encoding="utf-8")
     print("Вставлено постов:", len(html_parts))
+
+    EN_INDEX_HTML.parent.mkdir(parents=True, exist_ok=True)
+    en_block = f"{marker_start}\n{content_en}\n        {marker_end}"
+    new_index_en_src = pattern.sub(en_block, index_text, count=1)
+    EN_INDEX_HTML.write_text(ru_blog_index_to_en(new_index_en_src), encoding="utf-8")
+    print("Обновлён английский индекс блога:", EN_INDEX_HTML)
 
 
 if __name__ == "__main__":

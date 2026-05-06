@@ -201,8 +201,20 @@ def main() -> None:
             action = "добавлен"
             count_new += 1
 
-        data = blog_save.normalize_post(post, group_id, base_url, entry_num, video_map, OUT_DIR)
         path = OUT_DIR / f"entry_{entry_num}.json"
+        prev_snapshot: dict = {}
+        if path.exists():
+            try:
+                prev_snapshot = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+
+        data = blog_save.normalize_post(post, group_id, base_url, entry_num, video_map, OUT_DIR)
+        old_t = (prev_snapshot.get("text") or "").strip()
+        new_t = (data.get("text") or "").strip()
+        if prev_snapshot.get("text_en") is not None and old_t == new_t:
+            data["text_en"] = prev_snapshot["text_en"]
+
         path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"  entry_{entry_num}.json — {action} (VK id {vk_id})")
 

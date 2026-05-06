@@ -24,6 +24,14 @@ p { margin: 0 0 0.75em; }
 .logo { height: 48px; width: auto; }
 .logo img { height: 100%; width: auto; }
 
+/* Логотип + языки — один блок, чтобы положение переключателя не зависело от ширины меню (RU/EN) */
+.site-header__brand {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 3em;
+}
+
 /* Nav */
 .nav-toggle { display: none; background: none; border: none; cursor: pointer; padding: 0.5rem; }
 .nav-toggle span { display: block; width: 24px; height: 2px; background: #333; margin: 5px 0; }
@@ -35,6 +43,47 @@ p { margin: 0 0 0.75em; }
 .submenu li { display: block; }
 .main-nav li:hover .submenu { opacity: 1; visibility: visible; transform: translateY(0); }
 .submenu a { display: block; padding: 0.5rem 1rem; white-space: nowrap; }
+
+/* Языковой переключатель: внутри .site-header__brand рядом с логотипом */
+.site-header .lang-switch {
+  flex-shrink: 0;
+}
+.lang-switch__inner {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0;
+  padding: 0.12rem 0.28rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.05);
+}
+.lang-switch__link {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
+  padding: 0.1rem 0.15rem;
+  border-radius: 3px;
+}
+.lang-switch__link:hover {
+  text-decoration: none;
+  background: rgba(0, 0, 0, 0.07);
+}
+.lang-switch__flag {
+  font-size: 1em;
+  line-height: 1;
+}
+.lang-switch__code {
+  font-size: 1em;
+}
+.lang-switch__sep {
+  opacity: 0.45;
+  font-weight: 400;
+}
+.lang-switch__link--current {
+  text-decoration: underline;
+}
 
 @media (max-width: 959px) {
   .nav-toggle { display: block; }

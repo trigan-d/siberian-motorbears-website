@@ -20,10 +20,12 @@ sys.path.insert(0, str(SCRIPT_DIR))
 import render_blog_initial as blog_render
 
 BLOG_DIR = REPO_ROOT / "site" / "blog"
+EN_BLOG_DIR = REPO_ROOT / "site" / "en" / "blog"
 INDEX_HTML = BLOG_DIR / "index.html"
 SITEMAP = REPO_ROOT / "site" / "sitemap.xml"
 BASE_URL = "https://siberian-motorbears.ru"
 BLOG_URL = BASE_URL + "/blog/"
+EN_BLOG_URL = BASE_URL + "/en/blog/"
 
 # Транслитерация RU → EN (1:1 для slug; ч→c, ш→s, щ→s, ж→z, ю→u, я→a)
 _TRANS = str.maketrans(
@@ -33,6 +35,8 @@ _TRANS = str.maketrans(
 
 # Заголовки по смыслу (entry_titles.json); ключи — строки "1", "2", ...
 _ENTRY_TITLES_CACHE: dict[str, str] | None = None
+# Англоязычные заголовки для EN-страниц (те же ключи, что в entry_titles.json)
+_ENTRY_TITLES_EN_CACHE: dict[str, str] | None = None
 
 
 def _load_entry_titles() -> dict[str, str]:
@@ -46,6 +50,17 @@ def _load_entry_titles() -> dict[str, str]:
     return _ENTRY_TITLES_CACHE
 
 
+def _load_entry_titles_en() -> dict[str, str]:
+    global _ENTRY_TITLES_EN_CACHE
+    if _ENTRY_TITLES_EN_CACHE is None:
+        path = BLOG_DIR / "entry_titles_en.json"
+        try:
+            _ENTRY_TITLES_EN_CACHE = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            _ENTRY_TITLES_EN_CACHE = {}
+    return _ENTRY_TITLES_EN_CACHE
+
+
 def title_for_entry(data: dict, entry_num: int) -> str:
     """Заголовок записи: из entry_titles.json или по смыслу текста (2–5 слов)."""
     titles = _load_entry_titles()
@@ -55,22 +70,35 @@ def title_for_entry(data: dict, entry_num: int) -> str:
     return title_from_text((data.get("text") or "").strip(), entry_num)
 
 
-def title_from_text(text: str, entry_num: int) -> str:
+def title_from_text(text: str, entry_num: int, *, locale: str = "ru") -> str:
     """Сгенерировать краткий заголовок из 2–5 слов по тексту записи (запасной вариант)."""
+    fallback = f"Post {entry_num}" if locale == "en" else f"Запись {entry_num}"
     if not text or not text.strip():
-        return f"Запись {entry_num}"
+        return fallback
     first_line = text.strip().split("\n")[0].strip()
     if not first_line:
-        return f"Запись {entry_num}"
+        return fallback
     first_line = re.sub(r"^https?://\S+\s*", "", first_line)
     if not first_line:
-        return f"Запись {entry_num}"
+        return fallback
     first_sentence = re.split(r"[.!?]", first_line, 1)[0].strip() or first_line
     words = [w for w in first_sentence.split() if len(w) > 0][:5]
     if len(words) < 2:
         words = [w for w in first_line.split() if len(w) > 0][:5]
     title = " ".join(words[:5]).strip()
-    return title or f"Запись {entry_num}"
+    return title or fallback
+
+
+def title_for_en_page(data: dict, entry_num: int) -> str:
+    """Заголовок для EN: entry_titles_en.json → за первые слова из text_en → русский entry_titles."""
+    titles_en = _load_entry_titles_en()
+    key = str(entry_num)
+    if key in titles_en:
+        return titles_en[key]
+    te = (data.get("text_en") or "").strip()
+    if te:
+        return title_from_text(te, entry_num, locale="en")
+    return title_for_entry(data, entry_num)
 
 
 def slug_from_title(title: str) -> str:
@@ -89,37 +117,111 @@ def entry_page_html(
     article_html: str,
     entry_url: str,
     iso_date: str,
+    *,
+    locale: str = "ru",
 ) -> str:
-    """Собрать полную HTML-страницу одной записи."""
-    page_title = f"Запись в блоге {entry_num}: {title} | Siberian motorbears"
-    # В хлебных крошках — только Блог → заголовок записи (без «Запись в блоге N:»)
-    desc = (title + ". Блог Siberian motorbears.")[:160]
+    """Собрать полную HTML-страницу одной записи (ru или en зеркало под /en/blog/)."""
+    asset = "../" if locale == "ru" else "../../"
+    if locale == "en":
+        page_title = f"Blog post {entry_num}: {title} | Siberian motorbears"
+        desc = (title + ". Motorhome blog — Siberian motorbears.")[:160]
+        html_lang = "en"
+        og_locale = "en_US"
+        nav_menu = "Menu"
+        bc_aria = "Breadcrumbs"
+        t_home = "Home"
+        t_blog = "Blog"
+        t_about = "About"
+        t_order = "Manufacturing"
+        t_baribal = "Baribal camper"
+        t_panda = "Panda motorhome"
+        t_examples = "Portfolio"
+        t_rent = "Rental"
+        t_baron = "Baribal Baron"
+        t_mia = "Panda Mia"
+        t_routes = "Trip ideas"
+        t_contact = "Contact"
+        t_telegram = "Telegram"
+        t_blog_nav = "Blog"
+        t_read_blog = "Read full blog"
+        t_legal = "Legal"
+        t_footer_nav = "Contact"
+        a_vk = "VK"
+        a_email = "Email"
+        a_phone = "Phone"
+        a_telegram = "Telegram"
+        ld_home = "Home"
+        ld_blog = "Blog"
+        ru_redirect = ""
+        article_wrapped = article_html
+    else:
+        page_title = f"Запись в блоге {entry_num}: {title} | Siberian motorbears"
+        desc = (title + ". Блог Siberian motorbears.")[:160]
+        html_lang = "ru"
+        og_locale = "ru_RU"
+        nav_menu = "Меню"
+        bc_aria = "Хлебные крошки"
+        t_home = "Главная"
+        t_blog = "Блог"
+        t_about = "О нас"
+        t_order = "Производство"
+        t_baribal = "Кемпер Барибал"
+        t_panda = "Автодом Панда"
+        t_examples = "Примеры работ"
+        t_rent = "Аренда"
+        t_baron = "Барибал Барон"
+        t_mia = "Панда Мия"
+        t_routes = "Идеи маршрутов"
+        t_contact = "Контакты"
+        t_telegram = "Телеграм"
+        t_blog_nav = "Блог"
+        t_read_blog = "Читать весь блог"
+        t_legal = "реквизиты"
+        t_footer_nav = "Контакты"
+        a_vk = "Вконтакте"
+        a_email = "Электронная почта"
+        a_phone = "Номер телефона"
+        a_telegram = "Telegram"
+        ld_home = "Главная"
+        ld_blog = "Блог"
+        ru_redirect = (
+            '  <script src="/js/locale-redirect.js"></script>\n'
+        )
+        article_wrapped = article_html
 
+    blog_index_url = "https://siberian-motorbears.ru/blog/"
+    if locale == "en":
+        blog_index_url = "https://siberian-motorbears.ru/en/blog/"
+
+    # Для EN страниц пункт «Главная» в schema.org ведёт на /en/
+    home_item = "https://siberian-motorbears.ru/"
+    if locale == "en":
+        home_item = "https://siberian-motorbears.ru/en/"
     ld_breadcrumb = (
         '{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":'
-        '[{"@type":"ListItem","position":1,"name":"Главная","item":"https://siberian-motorbears.ru/"},'
-        '{"@type":"ListItem","position":2,"name":"Блог","item":"https://siberian-motorbears.ru/blog/"},'
+        f'[{{"@type":"ListItem","position":1,"name":{json.dumps(ld_home)},"item":{json.dumps(home_item)}}},'
+        f'{{"@type":"ListItem","position":2,"name":{json.dumps(ld_blog)},"item":{json.dumps(blog_index_url)}}},'
         f'{{"@type":"ListItem","position":3,"name":{json.dumps(title)},"item":{json.dumps(entry_url)}}}'
         "]}"
     )
 
     return f"""<!DOCTYPE html>
-<html lang="ru">
+<html lang="{html_lang}">
 <head>
   <meta charset="utf-8">
   <title>{blog_render.html.escape(page_title)}</title>
   <meta name="description" content="{blog_render.html.escape(desc)}">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="canonical" href="{blog_render.html.escape(entry_url)}">
-  <link rel="icon" type="image/png" href="../assets/img/eed9441b-4ec6-4a76-b970-04aef060a543-398990.png">
+  <link rel="icon" type="image/png" href="{asset}assets/img/eed9441b-4ec6-4a76-b970-04aef060a543-398990.png">
   <meta property="og:type" content="article">
   <meta property="og:url" content="{blog_render.html.escape(entry_url)}">
   <meta property="og:title" content="{blog_render.html.escape(page_title)}">
   <meta property="og:description" content="{blog_render.html.escape(desc)}">
-  <meta property="og:locale" content="ru_RU">
+  <meta property="og:locale" content="{og_locale}">
   <meta property="article:published_time" content="{blog_render.html.escape(iso_date)}">
-  <link rel="stylesheet" href="../css/main.css">
-  <script type="application/ld+json">{ld_breadcrumb}</script>
+  <link rel="stylesheet" href="{asset}css/main.css">
+{ru_redirect}  <script type="application/ld+json">{ld_breadcrumb}</script>
   <!-- Яндекс.Метрика -->
   <script type="text/javascript">(function(m,e,t,r,i,k,a){{m[i]=m[i]||function(){{(m[i].a=m[i].a||[]).push(arguments)}};m[i].l=1*new Date();for(var j=0;j<document.scripts.length;j++){{if(document.scripts[j].src===r){{return;}}}}k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)}})(window,document,"script","https://mc.yandex.ru/metrika/tag.js","ym");ym(66322963,"init",{{clickmap:true,trackLinks:true,accurateTrackBounce:true,webvisor:true}});</script>
   <!-- VK Пиксель -->
@@ -128,66 +230,67 @@ def entry_page_html(
 <body>
   <header class="site-header">
     <div class="container">
-      <a href="../" class="logo"><img src="../assets/img/f69558aa-3fbc-4609-a5e5-c1abd8dfcc50-1783828.png" alt="Siberian motorbears" width="180" height="48"></a>
-      <button type="button" class="nav-toggle" aria-label="Меню"><span></span><span></span><span></span></button>
+      <a href="../" class="logo"><img src="{asset}assets/img/f69558aa-3fbc-4609-a5e5-c1abd8dfcc50-1783828.png" alt="Siberian motorbears" width="180" height="48"></a>
+      <button type="button" class="nav-toggle" aria-label="{blog_render.html.escape(nav_menu)}"><span></span><span></span><span></span></button>
       <nav class="main-nav">
         <ul>
-          <li><a href="../">О нас</a></li>
-          <li><a href="../order/">Производство</a>
+          <li><a href="../">{blog_render.html.escape(t_about)}</a></li>
+          <li><a href="../order/">{blog_render.html.escape(t_order)}</a>
             <ul class="submenu">
-              <li><a href="../baribal/">Кемпер Барибал</a></li>
-              <li><a href="../panda/">Автодом Панда</a></li>
-              <li><a href="../examples/">Примеры работ</a></li>
+              <li><a href="../baribal/">{blog_render.html.escape(t_baribal)}</a></li>
+              <li><a href="../panda/">{blog_render.html.escape(t_panda)}</a></li>
+              <li><a href="../examples/">{blog_render.html.escape(t_examples)}</a></li>
             </ul>
           </li>
-          <li><a href="../rent/">Аренда</a>
+          <li><a href="../rent/">{blog_render.html.escape(t_rent)}</a>
             <ul class="submenu">
-              <li><a href="../baron/">Барибал Барон</a></li>
-              <li><a href="../mia/">Панда Мия</a></li>
-              <li><a href="../routes/">Идеи маршрутов</a></li>
+              <li><a href="../baron/">{blog_render.html.escape(t_baron)}</a></li>
+              <li><a href="../mia/">{blog_render.html.escape(t_mia)}</a></li>
+              <li><a href="../routes/">{blog_render.html.escape(t_routes)}</a></li>
             </ul>
           </li>
-          <li><a href="../contact/">Контакты</a>
+          <li><a href="../contact/">{blog_render.html.escape(t_contact)}</a>
             <ul class="submenu">
               <li><a href="https://vk.com/siberian_motorbears" target="_blank" rel="noopener">VK</a></li>
-              <li><a href="https://t.me/trigansda" target="_blank" rel="noopener">Телеграм</a></li>
+              <li><a href="https://t.me/trigansda" target="_blank" rel="noopener">{blog_render.html.escape(t_telegram)}</a></li>
               <li><a href="tel:+79134602050">+7 (913) 460-20-50</a></li>
               <li><a href="mailto:siberian.motorbears@gmail.com">Email</a></li>
             </ul>
           </li>
-          <li><a href="./">Блог</a></li>
+          <li><a href="./">{blog_render.html.escape(t_blog_nav)}</a></li>
         </ul>
       </nav>
     </div>
   </header>
 
   <main>
-    <nav class="breadcrumbs" aria-label="Хлебные крошки">
-      <div class="container"><a href="../">Главная</a> → <a href="./">Блог</a> → <span>{blog_render.html.escape(title)}</span></div>
+    <nav class="breadcrumbs" aria-label="{blog_render.html.escape(bc_aria)}">
+      <div class="container"><a href="../">{blog_render.html.escape(t_home)}</a> → <a href="./">{blog_render.html.escape(t_blog)}</a> → <span>{blog_render.html.escape(title)}</span></div>
     </nav>
     <section class="section blog-section">
       <div class="container">
         <div class="blog-feed">
-{article_html}
+{article_wrapped}
         </div>
-        <p class="blog-entry__back" style="margin-top:1rem;"><a href="./">Читать весь блог</a></p>
+        <p class="blog-entry__back" style="margin-top:1rem;"><a href="./">{blog_render.html.escape(t_read_blog)}</a></p>
       </div>
     </section>
   </main>
 
   <footer class="site-footer">
     <div class="container">
-      <div><h5>Siberian motorbears</h5><a href="../legal/">реквизиты</a></div>
-      <nav class="footer-links" aria-label="Контакты">
-        <a href="https://vk.com/siberian_motorbears" target="_blank" rel="noopener" aria-label="Вконтакте"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M17.7703 13.3585C18.301 13.9307 18.8612 14.4692 19.3372 15.0992C19.5475 15.3791 19.7466 15.668 19.8989 15.9929C20.1147 16.4548 19.9192 16.963 19.5442 16.9906L17.2133 16.9894C16.6121 17.0445 16.1325 16.7772 15.7293 16.3233C15.4066 15.9602 15.1077 15.5739 14.7974 15.1986C14.6702 15.0452 14.537 14.9008 14.3779 14.7868C14.0597 14.5586 13.7835 14.6285 13.6017 14.995C13.4165 15.3678 13.3745 15.7806 13.3563 16.1961C13.3313 16.8023 13.1654 16.9616 12.6141 16.9894C11.4358 17.0507 10.3175 16.8539 9.2787 16.1974C8.36284 15.6187 7.65263 14.8017 7.03447 13.8767C5.83089 12.0757 4.90919 10.0967 4.08081 8.06218C3.89434 7.60381 4.03071 7.35776 4.48864 7.34905C5.24905 7.33273 6.00936 7.33389 6.77067 7.34789C7.07973 7.35288 7.28433 7.54865 7.40366 7.87111C7.81507 8.98833 8.31847 10.0513 8.95036 11.0365C9.11863 11.2988 9.29022 11.5611 9.53456 11.7458C9.80487 11.9502 10.0107 11.8824 10.1378 11.5499C10.2185 11.339 10.2539 11.1119 10.2721 10.886C10.3323 10.109 10.3402 9.33337 10.2346 8.5591C10.1697 8.07588 9.92326 7.76306 9.48667 7.67162C9.26388 7.625 9.29705 7.53344 9.40492 7.393C9.59228 7.15078 9.76849 7 10.1198 7H12.7541C13.1688 7.0904 13.2609 7.29616 13.3177 7.75703L13.3199 10.9887C13.3154 11.1672 13.4006 11.6966 13.6916 11.8147C13.9245 11.8987 14.078 11.693 14.2177 11.5299C14.8484 10.7906 15.2986 9.91686 15.7007 9.01214C15.8792 8.61432 16.0327 8.20117 16.1814 7.78838C16.2916 7.48206 16.4645 7.33134 16.7769 7.33802L19.3122 7.34051C19.3874 7.34051 19.4635 7.34173 19.5363 7.35549C19.9635 7.4359 20.0806 7.63888 19.9486 8.09963C19.7407 8.82252 19.3362 9.42493 18.9407 10.0301C18.5179 10.6763 18.0657 11.3003 17.6464 11.9502C17.2611 12.5438 17.2917 12.843 17.7703 13.3585V13.3585Z" fill="currentColor"/></svg></a>
-        <a href="mailto:siberian.motorbears@gmail.com" aria-label="Электронная почта"><svg viewBox="0 0 16 12" width="16" height="12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.21596 5.91784C7.63375 6.19676 8.36681 6.19679 8.78469 5.91781L15.9057 1.16376C15.6722 0.487312 15.0302 0 14.2763 0H1.72423C0.970317 0 0.328343 0.487312 0.0947475 1.16376L7.21574 5.91771C7.21584 5.91777 7.2159 5.91777 7.21596 5.91784Z" fill="currentColor"/><path d="M9.30464 6.69873C9.30454 6.6988 9.30448 6.69886 9.30442 6.69889C8.93873 6.94302 8.46929 7.06509 8 7.06509C7.53062 7.06509 7.06137 6.94305 6.69565 6.69886L0 2.22888V10.2737C0 11.2256 0.77335 12 1.72395 12H14.2761C15.2267 12 16 11.2256 16 10.2737V2.22888L9.30464 6.69873Z" fill="currentColor"/></svg></a>
-        <a href="tel:+79134602050" aria-label="Номер телефона"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14.2772 11.1462L13.1995 11.0709C12.4568 11.0189 11.7453 10.8682 11.0753 10.6336C10.7636 10.5246 10.4205 10.5503 10.1432 10.7297L8.49203 11.7977C6.62665 10.6763 5.15294 8.98667 4.30775 6.97824L5.59449 5.49273C5.81108 5.24242 5.88405 4.90593 5.81895 4.58147C5.68021 3.88885 5.63038 3.16464 5.68222 2.42325L5.75758 1.34559C5.79903 0.752816 5.35014 0.234178 4.5348 0.177163L3.13883 0.0795473C1.94384 -0.00401429 0.913529 0.906931 0.831569 2.10176C0.342767 9.22795 5.71791 15.4113 12.8428 15.9191C14.0374 16.0042 15.0829 15.1105 15.1664 13.9157L15.2795 12.2992C15.3209 11.7064 14.8699 11.1877 14.2772 11.1462Z" fill="currentColor"/></svg></a>
-        <a href="https://t.me/trigansda" target="_blank" rel="noopener" aria-label="Telegram"><svg viewBox="0 0 16 13" width="16" height="13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.09992 5.59647C5.39487 3.76188 8.25885 2.55241 9.69185 1.96805C13.7834 0.299594 14.6335 0.00976514 15.1877 9.27819e-05C15.3095 -0.00191006 15.582 0.0277027 15.7586 0.16813C15.9076 0.286703 15.9486 0.44688 15.9683 0.5593C15.9879 0.671721 16.0123 0.927819 15.9929 1.12793C15.7712 3.41192 14.8118 8.95457 14.3237 11.5127C14.1172 12.5951 13.7105 12.958 13.3168 12.9936C12.4613 13.0707 11.8116 12.4392 10.9829 11.9067C9.68624 11.0733 8.95369 10.5545 7.69503 9.74136C6.24042 8.80157 7.18338 8.28505 8.01236 7.44091C8.22931 7.21999 11.999 3.85836 12.0719 3.55341C12.0811 3.51527 12.0895 3.37311 12.0034 3.29804C11.9172 3.22297 11.7901 3.24864 11.6983 3.26906C11.5683 3.29799 9.4968 4.64035 5.48389 7.29611C4.89591 7.69195 4.36333 7.88482 3.88616 7.87472C3.36012 7.86357 2.34822 7.58311 1.59598 7.34338C0.673328 7.04933 -0.0599784 6.89387 0.00387615 6.3945C0.0371355 6.13439 0.402482 5.86838 1.09992 5.59647Z" fill="currentColor"/></svg></a>
+      <div><h5>Siberian motorbears</h5><a href="../legal/">{blog_render.html.escape(t_legal)}</a></div>
+      <nav class="footer-links" aria-label="{blog_render.html.escape(t_footer_nav)}">
+        <a href="https://vk.com/siberian_motorbears" target="_blank" rel="noopener" aria-label="{blog_render.html.escape(a_vk)}"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M17.7703 13.3585C18.301 13.9307 18.8612 14.4692 19.3372 15.0992C19.5475 15.3791 19.7466 15.668 19.8989 15.9929C20.1147 16.4548 19.9192 16.963 19.5442 16.9906L17.2133 16.9894C16.6121 17.0445 16.1325 16.7772 15.7293 16.3233C15.4066 15.9602 15.1077 15.5739 14.7974 15.1986C14.6702 15.0452 14.537 14.9008 14.3779 14.7868C14.0597 14.5586 13.7835 14.6285 13.6017 14.995C13.4165 15.3678 13.3745 15.7806 13.3563 16.1961C13.3313 16.8023 13.1654 16.9616 12.6141 16.9894C11.4358 17.0507 10.3175 16.8539 9.2787 16.1974C8.36284 15.6187 7.65263 14.8017 7.03447 13.8767C5.83089 12.0757 4.90919 10.0967 4.08081 8.06218C3.89434 7.60381 4.03071 7.35776 4.48864 7.34905C5.24905 7.33273 6.00936 7.33389 6.77067 7.34789C7.07973 7.35288 7.28433 7.54865 7.40366 7.87111C7.81507 8.98833 8.31847 10.0513 8.95036 11.0365C9.11863 11.2988 9.29022 11.5611 9.53456 11.7458C9.80487 11.9502 10.0107 11.8824 10.1378 11.5499C10.2185 11.339 10.2539 11.1119 10.2721 10.886C10.3323 10.109 10.3402 9.33337 10.2346 8.5591C10.1697 8.07588 9.92326 7.76306 9.48667 7.67162C9.26388 7.625 9.29705 7.53344 9.40492 7.393C9.59228 7.15078 9.76849 7 10.1198 7H12.7541C13.1688 7.0904 13.2609 7.29616 13.3177 7.75703L13.3199 10.9887C13.3154 11.1672 13.4006 11.6966 13.6916 11.8147C13.9245 11.8987 14.078 11.693 14.2177 11.5299C14.8484 10.7906 15.2986 9.91686 15.7007 9.01214C15.8792 8.61432 16.0327 8.20117 16.1814 7.78838C16.2916 7.48206 16.4645 7.33134 16.7769 7.33802L19.3122 7.34051C19.3874 7.34051 19.4635 7.34173 19.5363 7.35549C19.9635 7.4359 20.0806 7.63888 19.9486 8.09963C19.7407 8.82252 19.3362 9.42493 18.9407 10.0301C18.5179 10.6763 18.0657 11.3003 17.6464 11.9502C17.2611 12.5438 17.2917 12.843 17.7703 13.3585V13.3585Z" fill="currentColor"/></svg></a>
+        <a href="mailto:siberian.motorbears@gmail.com" aria-label="{blog_render.html.escape(a_email)}"><svg viewBox="0 0 16 12" width="16" height="12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.21596 5.91784C7.63375 6.19676 8.36681 6.19679 8.78469 5.91781L15.9057 1.16376C15.6722 0.487312 15.0302 0 14.2763 0H1.72423C0.970317 0 0.328343 0.487312 0.0947475 1.16376L7.21574 5.91771C7.21584 5.91777 7.2159 5.91777 7.21596 5.91784Z" fill="currentColor"/><path d="M9.30464 6.69873C9.30454 6.6988 9.30448 6.69886 9.30442 6.69889C8.93873 6.94302 8.46929 7.06509 8 7.06509C7.53062 7.06509 7.06137 6.94305 6.69565 6.69886L0 2.22888V10.2737C0 11.2256 0.77335 12 1.72395 12H14.2761C15.2267 12 16 11.2256 16 10.2737V2.22888L9.30464 6.69873Z" fill="currentColor"/></svg></a>
+        <a href="tel:+79134602050" aria-label="{blog_render.html.escape(a_phone)}"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14.2772 11.1462L13.1995 11.0709C12.4568 11.0189 11.7453 10.8682 11.0753 10.6336C10.7636 10.5246 10.4205 10.5503 10.1432 10.7297L8.49203 11.7977C6.62665 10.6763 5.15294 8.98667 4.30775 6.97824L5.59449 5.49273C5.81108 5.24242 5.88405 4.90593 5.81895 4.58147C5.68021 3.88885 5.63038 3.16464 5.68222 2.42325L5.75758 1.34559C5.79903 0.752816 5.35014 0.234178 4.5348 0.177163L3.13883 0.0795473C1.94384 -0.00401429 0.913529 0.906931 0.831569 2.10176C0.342767 9.22795 5.71791 15.4113 12.8428 15.9191C14.0374 16.0042 15.0829 15.1105 15.1664 13.9157L15.2795 12.2992C15.3209 11.7064 14.8699 11.1877 14.2772 11.1462Z" fill="currentColor"/></svg></a>
+        <a href="https://t.me/trigansda" target="_blank" rel="noopener" aria-label="{blog_render.html.escape(a_telegram)}"><svg viewBox="0 0 16 13" width="16" height="13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.09992 5.59647C5.39487 3.76188 8.25885 2.55241 9.69185 1.96805C13.7834 0.299594 14.6335 0.00976514 15.1877 9.27819e-05C15.3095 -0.00191006 15.582 0.0277027 15.7586 0.16813C15.9076 0.286703 15.9486 0.44688 15.9683 0.5593C15.9879 0.671721 16.0123 0.927819 15.9929 1.12793C15.7712 3.41192 14.8118 8.95457 14.3237 11.5127C14.1172 12.5951 13.7105 12.958 13.3168 12.9936C12.4613 13.0707 11.8116 12.4392 10.9829 11.9067C9.68624 11.0733 8.95369 10.5545 7.69503 9.74136C6.24042 8.80157 7.18338 8.28505 8.01236 7.44091C8.22931 7.21999 11.999 3.85836 12.0719 3.55341C12.0811 3.51527 12.0895 3.37311 12.0034 3.29804C11.9172 3.22297 11.7901 3.24864 11.6983 3.26906C11.5683 3.29799 9.4968 4.64035 5.48389 7.29611C4.89591 7.69195 4.36333 7.88482 3.88616 7.87472C3.36012 7.86357 2.34822 7.58311 1.59598 7.34338C0.673328 7.04933 -0.0599784 6.89387 0.00387615 6.3945C0.0371355 6.13439 0.402482 5.86838 1.09992 5.59647Z" fill="currentColor"/></svg></a>
       </nav>
     </div>
   </footer>
 
-  <script src="../js/carousel.js"></script>
+  <script src="{asset}js/carousel.js"></script>
+  <script src="/js/lang-switch.js" defer></script>
   <script>
     document.querySelector('.nav-toggle').addEventListener('click', function () {{
       document.querySelector('.main-nav').classList.toggle('js-open');
@@ -204,6 +307,9 @@ def delete_entry_page(entry_num: int) -> None:
     for p in BLOG_DIR.glob(f"entry_{entry_num}_*.html"):
         p.unlink()
         removed_name = p.name
+    if EN_BLOG_DIR.exists():
+        for p in EN_BLOG_DIR.glob(f"entry_{entry_num}_*.html"):
+            p.unlink()
     manifest_path = BLOG_DIR / "entry_pages_manifest.json"
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -265,15 +371,24 @@ def main(count: int | None = None) -> None:
             continue
 
         title = title_for_entry(data, entry_num)
+        title_en = title_for_en_page(data, entry_num)
         slug = slug_from_title(title)
         if not slug:
             slug = f"entry-{entry_num}"
 
         article_html = blog_render.render_entry(data, date_is_link=False)
+        article_html_en = blog_render.render_entry(
+            data,
+            date_is_link=False,
+            date_locale="en",
+            body_locale="en",
+            entries_base="../../blog/entries/",
+        )
         date_ts = data.get("date", 0)
         iso_date = datetime.fromtimestamp(date_ts, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
         out_name = f"entry_{entry_num}_{slug}.html"
         entry_url = BLOG_URL + out_name
+        entry_url_en = EN_BLOG_URL + out_name
 
         full_html = entry_page_html(
             entry_num=entry_num,
@@ -282,12 +397,28 @@ def main(count: int | None = None) -> None:
             article_html=article_html,
             entry_url=entry_url,
             iso_date=iso_date,
+            locale="ru",
+        )
+        full_html_en = entry_page_html(
+            entry_num=entry_num,
+            title=title_en,
+            slug=slug,
+            article_html=article_html_en,
+            entry_url=entry_url_en,
+            iso_date=iso_date,
+            locale="en",
         )
         out_path = BLOG_DIR / out_name
+        EN_BLOG_DIR.mkdir(parents=True, exist_ok=True)
+        out_path_en = EN_BLOG_DIR / out_name
         # Удалить старые страницы этой же записи (другой slug)
         for old in BLOG_DIR.glob(f"entry_{entry_num}_*.html"):
             old.unlink()
+        if EN_BLOG_DIR.exists():
+            for old in EN_BLOG_DIR.glob(f"entry_{entry_num}_*.html"):
+                old.unlink()
         out_path.write_text(full_html, encoding="utf-8")
+        out_path_en.write_text(full_html_en, encoding="utf-8")
         print("Создана:", out_name, "—", title)
         generated.append((entry_num, out_name, iso_date[:10], title))
 
@@ -327,16 +458,22 @@ def main(count: int | None = None) -> None:
     # Обновить sitemap: убрать старые URL страниц записей блога, добавить новые
     if SITEMAP.exists():
         sitemap_text = SITEMAP.read_text(encoding="utf-8")
-        # Удалить старые URL страниц записей (blog/entry_*.html)
+        # Удалить старые URL страниц записей (blog/entry_*.html и en/blog/entry_*.html)
         sitemap_lines = [
             line for line in sitemap_text.splitlines()
-            if not ("/blog/entry_" in line and ".html</loc>" in line)
+            if not (
+                ("/blog/entry_" in line or "/en/blog/entry_" in line)
+                and ".html</loc>" in line
+            )
         ]
         sitemap_text = "\n".join(sitemap_lines)
         insert_lines = []
         for _entry_num, out_name, lastmod, _ in generated:
             insert_lines.append(
                 f'  <url><loc>{BLOG_URL}{out_name}</loc><lastmod>{lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>'
+            )
+            insert_lines.append(
+                f'  <url><loc>{EN_BLOG_URL}{out_name}</loc><lastmod>{lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>'
             )
         insert_block = "\n".join(insert_lines) + "\n"
         if "</urlset>" in sitemap_text:

@@ -86,9 +86,24 @@ p { margin: 0 0 0.75em; }
 }
 
 @media (max-width: 959px) {
+  .site-header { padding: 0.28rem 0 0.35rem; }
+  .site-header .container { gap: 0.4rem; align-items: center; }
   .site-header__brand { gap: 1.5em; }
-  .nav-toggle { display: block; }
-  .main-nav { width: 100%; max-height: calc(100vh - 4rem); overflow-y: auto; }
+  .logo { height: 42px; }
+  .nav-toggle { display: block; flex-shrink: 0; margin-left: auto; }
+  /* Закрытое меню не занимает высоту второй строки — убирает пустоту под логотипом */
+  .main-nav {
+    width: 100%;
+    flex-basis: 100%;
+    min-height: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.22s ease-out;
+  }
+  .main-nav.js-open {
+    max-height: calc(100vh - 4rem);
+    overflow-y: auto;
+  }
   .main-nav > ul { flex-direction: column; align-items: stretch; gap: 0; }
   .main-nav > ul > li { position: static; }
   .main-nav a { padding: 0.35rem 0.5rem; font-size: 0.95rem; }

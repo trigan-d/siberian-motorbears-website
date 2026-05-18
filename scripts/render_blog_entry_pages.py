@@ -205,6 +205,21 @@ def entry_page_html(
         "]}"
     )
 
+    # hreflang alternates: каждая запись блога имеет RU/EN зеркало по тому же slug
+    if locale == "en":
+        ru_alt = BLOG_URL + f"entry_{entry_num}_{slug}.html"
+        en_alt = entry_url
+    else:
+        ru_alt = entry_url
+        en_alt = EN_BLOG_URL + f"entry_{entry_num}_{slug}.html"
+    hreflang_block = (
+        "<!-- HREFLANG_ALTERNATES -->\n"
+        f'  <link rel="alternate" hreflang="ru" href="{blog_render.html.escape(ru_alt)}">\n'
+        f'  <link rel="alternate" hreflang="en" href="{blog_render.html.escape(en_alt)}">\n'
+        f'  <link rel="alternate" hreflang="x-default" href="{blog_render.html.escape(ru_alt)}">\n'
+        "  <!-- /HREFLANG_ALTERNATES -->"
+    )
+
     return f"""<!DOCTYPE html>
 <html lang="{html_lang}">
 <head>
@@ -213,6 +228,7 @@ def entry_page_html(
   <meta name="description" content="{blog_render.html.escape(desc)}">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="canonical" href="{blog_render.html.escape(entry_url)}">
+  {hreflang_block}
   <link rel="icon" type="image/png" href="{asset}assets/img/eed9441b-4ec6-4a76-b970-04aef060a543-398990.png">
   <meta property="og:type" content="article">
   <meta property="og:url" content="{blog_render.html.escape(entry_url)}">
@@ -290,12 +306,16 @@ def entry_page_html(
   </footer>
 
   <script src="{asset}js/carousel.js"></script>
+  <script src="{asset}js/blog-layout.js"></script>
   <script src="/js/lang-switch.js" defer></script>
   <script>
     document.querySelector('.nav-toggle').addEventListener('click', function () {{
       document.querySelector('.main-nav').classList.toggle('js-open');
     }});
-    document.addEventListener('DOMContentLoaded', function () {{ if (window.initCarousels) window.initCarousels(); }});
+    document.addEventListener('DOMContentLoaded', function () {{
+      if (window.initCarousels) window.initCarousels();
+      if (window.initBlogLayout) window.initBlogLayout();
+    }});
   </script>
 </body>
 </html>"""

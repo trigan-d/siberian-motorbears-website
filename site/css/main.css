@@ -312,7 +312,10 @@ p { margin: 0 0 0.75em; }
 .blog-section .blog-entry:nth-child(odd) { background: #fff; }
 .blog-section .blog-entry:nth-child(even) { background: #f6f7f8; }
 .blog-entry.product-block { align-items: start; }
-.blog-entry .product-block__info { order: 1; }
+.blog-entry .product-block__info { order: 1; min-width: 0; min-height: 0; scrollbar-gutter: stable; }
+.blog-entry .product-block__info::-webkit-scrollbar { width: 8px; }
+.blog-entry .product-block__info::-webkit-scrollbar-thumb { background: #c8c8c8; border-radius: 4px; }
+.blog-entry .product-block__info::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
 .blog-entry .product-block__media { order: 2; min-width: 0; display: flex; flex-direction: column; gap: 0.75rem; }
 .blog-entry__meta { margin-bottom: 0.5rem; font-size: 0.9rem; color: #666; }
 .blog-entry__date { display: inline; }

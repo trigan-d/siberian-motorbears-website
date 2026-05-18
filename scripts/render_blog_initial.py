@@ -248,6 +248,63 @@ def ru_blog_index_to_en(html: str) -> str:
     return t
 
 
+def _load_titles(locale: str) -> dict:
+    name = "entry_titles_en.json" if locale == "en" else "entry_titles.json"
+    path = ENTRIES_DIR.parent / name
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def render_archive_list(*, locale: str, manifest: dict) -> str:
+    """Полный список всех записей блога ссылками на отдельные страницы.
+
+    Нужен, чтобы поисковики обнаружили все entry_*.html через статичный HTML,
+    а не через клик по «Читать дальше» (JS).
+    """
+    titles = _load_titles(locale)
+    pattern = re.compile(r"^entry_(\d+)\.json$")
+    items = []
+    for p in ENTRIES_DIR.glob("entry_*.json"):
+        m = pattern.match(p.name)
+        if not m:
+            continue
+        n = int(m.group(1))
+        page = manifest.get(str(n))
+        if not page:
+            continue
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if is_entry_empty(data):
+            continue
+        ts = data.get("date", 0)
+        title = titles.get(str(n)) or ""
+        if not title:
+            text = entry_body_text(data, body_locale=locale)
+            first_line = text.split("\n", 1)[0] if text else ""
+            title = first_line[:80].rstrip() + ("…" if len(first_line) > 80 else "")
+        iso = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d")
+        short_date = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%d.%m.%y")
+        items.append((n, ts, page, title, iso, short_date))
+    items.sort(key=lambda r: r[1], reverse=True)
+    lis = [
+        f'<li><a href="{html.escape(page)}">'
+        f'<time class="blog-archive__date" datetime="{iso}">{short_date}</time> '
+        f'<span class="blog-archive__title">{html.escape(title)}</span>'
+        f'</a></li>'
+        for _, _, page, title, iso, short_date in items
+    ]
+    heading = "All posts" if locale == "en" else "Все записи"
+    return (
+        f'<nav class="blog-archive" aria-label="{heading}">'
+        f'<h2 class="blog-archive__title-h">{heading}</h2>'
+        f'<ul class="blog-archive__list">' + "".join(lis) + "</ul></nav>"
+    )
+
+
 def main() -> None:
     if not ENTRIES_DIR.exists():
         print("Папка entries не найдена:", ENTRIES_DIR, file=sys.stderr)
@@ -300,6 +357,14 @@ def main() -> None:
     marker_end = "<!-- /BLOG_INITIAL_ENTRIES -->"
     pattern = re.compile(re.escape(marker_start) + r".*?" + re.escape(marker_end), re.DOTALL)
 
+    archive_marker_start = "<!-- BLOG_ARCHIVE_LIST -->"
+    archive_marker_end = "<!-- /BLOG_ARCHIVE_LIST -->"
+    archive_pattern = re.compile(
+        re.escape(archive_marker_start) + r".*?" + re.escape(archive_marker_end), re.DOTALL
+    )
+    archive_ru = render_archive_list(locale="ru", manifest=manifest)
+    archive_en = render_archive_list(locale="en", manifest=manifest)
+
     index_text = INDEX_HTML.read_text(encoding="utf-8")
     if marker_start not in index_text or marker_end not in index_text:
         print("В index.html не найдены маркеры BLOG_INITIAL_ENTRIES.", file=sys.stderr)
@@ -307,12 +372,22 @@ def main() -> None:
 
     new_block = f"{marker_start}\n{content}\n        {marker_end}"
     new_index = pattern.sub(new_block, index_text, count=1)
+    if archive_marker_start in new_index:
+        new_index = archive_pattern.sub(
+            f"{archive_marker_start}\n{archive_ru}\n        {archive_marker_end}", new_index, count=1
+        )
     INDEX_HTML.write_text(new_index, encoding="utf-8")
     print("Вставлено постов:", len(html_parts))
 
     EN_INDEX_HTML.parent.mkdir(parents=True, exist_ok=True)
     en_block = f"{marker_start}\n{content_en}\n        {marker_end}"
     new_index_en_src = pattern.sub(en_block, index_text, count=1)
+    if archive_marker_start in new_index_en_src:
+        new_index_en_src = archive_pattern.sub(
+            f"{archive_marker_start}\n{archive_en}\n        {archive_marker_end}",
+            new_index_en_src,
+            count=1,
+        )
     EN_INDEX_HTML.write_text(ru_blog_index_to_en(new_index_en_src), encoding="utf-8")
     print("Обновлён английский индекс блога:", EN_INDEX_HTML)
 

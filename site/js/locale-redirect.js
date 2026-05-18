@@ -1,6 +1,8 @@
 (function () {
   try {
     if (typeof sessionStorage === 'undefined') return;
+    var ua = (navigator.userAgent || '');
+    if (/bot|crawler|spider|crawling|googlebot|bingbot|yandex|duckduckbot|baiduspider|facebookexternalhit|applebot|slurp|mediapartners-google|adsbot|google-inspection-tool|chrome-lighthouse/i.test(ua)) return;
     var path = location.pathname || '/';
     if (/^\/en(\/|$)/.test(path)) return;
     if (sessionStorage.getItem('smb_locale_redirect_done')) return;

@@ -156,9 +156,28 @@ def render_entry(
     )
 
 
+_PROTECTED_RE = re.compile(
+    r"(<!-- BLOG_INITIAL_ENTRIES -->.*?<!-- /BLOG_INITIAL_ENTRIES -->"
+    r"|<!-- BLOG_ARCHIVE_LIST -->.*?<!-- /BLOG_ARCHIVE_LIST -->)",
+    re.DOTALL,
+)
+
+
+def _brand_outside_entries(html: str) -> str:
+    """Латинизировать бренд только в обвязке страницы.
+
+    Между маркерами лежат тексты и заголовки записей. Там «Сибмотобэр» —
+    слово из поста (например, в записи про само переименование), а не
+    название в шапке, и заменять его нельзя.
+    """
+    parts = _PROTECTED_RE.split(html)
+    return "".join(part if i % 2 else ru_to_en_brand(part)
+                   for i, part in enumerate(parts))
+
+
 def ru_blog_index_to_en(html: str) -> str:
     """Собрать английский blog/index.html из русского (пути /en/blog/, медиа из ../../blog/entries/)."""
-    t = ru_to_en_brand(html)
+    t = _brand_outside_entries(html)
     pairs = [
         ('lang="ru"', 'lang="en"'),
         ('href="../assets/', 'href="../../assets/'),

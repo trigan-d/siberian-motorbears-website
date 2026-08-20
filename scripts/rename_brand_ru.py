@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Переименование бренда на русских страницах: «Siberian motorbears» → «Сибмотобер».
+"""Переименование бренда на русских страницах: «Siberian motorbears» → «Сибмотобэр».
 
 Трогает только русскую часть сайта: site/**/*.html кроме site/en/ и поле `text`
 (русский текст поста) в site/blog/entries/*.json. Английские страницы, поле
@@ -15,7 +15,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 SITE = REPO / "site"
 
-BRAND_RU = "Сибмотобер"
+BRAND_RU = "Сибмотобэр"
 BRAND_EN = "Siberian motorbears"
 # Только само название: «siberian-motorbears.ru», «siberian.motorbears@…»
 # и «vk.com/siberian_motorbears» под шаблон не попадают.

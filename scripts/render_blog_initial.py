@@ -18,6 +18,10 @@ MONTHS_RU = (
 )
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+from brand import ru_to_en_brand  # noqa: E402
+
 ENTRIES_DIR = REPO_ROOT / "site" / "blog" / "entries"
 INDEX_HTML = REPO_ROOT / "site" / "blog" / "index.html"
 EN_INDEX_HTML = REPO_ROOT / "site" / "en" / "blog" / "index.html"
@@ -154,7 +158,7 @@ def render_entry(
 
 def ru_blog_index_to_en(html: str) -> str:
     """Собрать английский blog/index.html из русского (пути /en/blog/, медиа из ../../blog/entries/)."""
-    t = html
+    t = ru_to_en_brand(html)
     pairs = [
         ('lang="ru"', 'lang="en"'),
         ('href="../assets/', 'href="../../assets/'),

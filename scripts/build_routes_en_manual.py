@@ -20,6 +20,7 @@ _SCRIPTS = REPO / "scripts"
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
+from brand import ru_to_en_brand  # noqa: E402
 from build_en_site import (  # noqa: E402
     UNIVERSAL_DEEP,
     apply_pairs,
@@ -48,7 +49,7 @@ def replace_articles(html: str) -> str:
 
 
 def main() -> None:
-    raw = SRC.read_text(encoding="utf-8")
+    raw = ru_to_en_brand(SRC.read_text(encoding="utf-8"))
     t = apply_pairs(raw, UNIVERSAL_DEEP)
     t = fix_deep_en_asset_paths(t)
     t = fix_page_absolute_urls(t)

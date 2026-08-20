@@ -13,6 +13,7 @@ REPO = Path(__file__).resolve().parent.parent
 SITE = REPO / "site"
 EN = SITE / "en"
 
+from brand import ru_to_en_brand  # noqa: E402
 from baribal_en_extra import BARIBAL_EXTRA  # noqa: E402
 from baron_en_extra import BARON_EXTRA  # noqa: E402
 from examples_en_extra import EXAMPLES_EXTRA  # noqa: E402
@@ -151,7 +152,7 @@ def fix_page_absolute_urls(text: str) -> str:
 def build_root_index() -> None:
     src = SITE / "index.html"
     dst = EN / "index.html"
-    t = src.read_text(encoding="utf-8")
+    t = ru_to_en_brand(src.read_text(encoding="utf-8"))
     t = t.replace('lang="ru"', 'lang="en"')
     t = t.replace('href="assets/', 'href="../assets/')
     t = t.replace('src="assets/', 'src="../assets/')
@@ -222,8 +223,8 @@ def build_root_index() -> None:
         ('aria-label="Электронная почта"', 'aria-label="Email"'),
         ('aria-label="Номер телефона"', 'aria-label="Phone"'),
         (
-            '<h1 class="mb-0" style="font-size: 1.5rem;">Вас приветствует команда <strong>Siberian&nbsp;motorbears</strong>:<br>производство и прокат автодомов.</h1>',
-            '<h1 class="mb-0" style="font-size: 1.5rem;">The <strong>Siberian&nbsp;motorbears</strong> team welcomes you:<br>motorhome manufacturing & rental.</h1>',
+            '<h1 class="mb-0" style="font-size: 1.5rem;">Вас приветствует команда <strong class="brand-name">Siberian motorbears</strong>:<br>производство и прокат автодомов.</h1>',
+            '<h1 class="mb-0" style="font-size: 1.5rem;">The <strong class="brand-name">Siberian&nbsp;motorbears</strong> team welcomes you:<br>motorhome manufacturing & rental.</h1>',
         ),
         (
             '<p class="lead" style="margin-top: 1rem; font-weight: 600;">Мы занимаемся автодомами с 2020-го года. У нас вы можете:<br>- купить готовый автодом или кемпер<br>- заказать изготовление автодома по своему вкусу<br>- арендовать автодом и поехать на Алтай, Байкал, по Сибири, или <a href="routes/" class="link--inline">куда угодно!</a></p>',
@@ -350,7 +351,7 @@ def build_root_index() -> None:
 def copy_translate_deep(rel: str, extra: list[tuple[str, str]] | None = None) -> None:
     src = SITE / rel
     dst = EN / rel
-    t = src.read_text(encoding="utf-8")
+    t = ru_to_en_brand(src.read_text(encoding="utf-8"))
     t = apply_pairs(t, UNIVERSAL_DEEP)
     t = fix_deep_en_asset_paths(t)
     t = fix_page_absolute_urls(t)

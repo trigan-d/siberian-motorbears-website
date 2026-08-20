@@ -13,6 +13,8 @@ a.link--inline { text-decoration: underline; }
 a.link--inline:hover { text-decoration: underline; }
 ul, ol { list-style: none; margin: 0; padding: 0; }
 h1, h2, h3, h4, h5 { font-family: "Ubuntu", sans-serif; margin: 0 0 0.5em; font-weight: 700; }
+/* Название бренда в тексте — зелёный логотипа */
+.brand-name { color: #216E48; }
 h2 { font-size: 1.5rem; }
 h3 { font-size: 1.25rem; }
 p { margin: 0 0 0.75em; }

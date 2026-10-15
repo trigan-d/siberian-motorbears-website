@@ -158,6 +158,7 @@ p { margin: 0 0 0.75em; }
 
 /* Product cards (model blocks) */
 .product-block { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: start; padding: 1.25rem 0; }
+.product-block[id] { scroll-margin-top: 6rem; }
 .product-block__info { order: 1; }
 .product-block__img { order: 2; position: relative; border-radius: 8px; overflow: hidden; aspect-ratio: 4/3; background: #eee; }
 .product-block--carousel-left .product-block__img { order: 1; }
